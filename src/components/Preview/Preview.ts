@@ -15,7 +15,7 @@ export class Preview {
     mermaid.initialize({
       startOnLoad: false,
       theme: 'default',
-      securityLevel: 'loose'
+      securityLevel: 'strict' // 设置为'strict'以避免CSP问题
     })
     
     this.render()
