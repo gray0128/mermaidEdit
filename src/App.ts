@@ -118,16 +118,29 @@ export class App {
       const prompt = customEvent.detail?.prompt
       const currentCode = customEvent.detail?.currentCode || ''
       
-      if (prompt) {
-        let success = false
-        try {
-          if (this.store.getState().currentChart?.id) {
-            this.store.setLoading(true);
-            
-            // 根据是否有现有代码构建不同的prompt
-            let finalPrompt = prompt
-            if (currentCode) {
-              finalPrompt = `请基于以下现有的Mermaid代码进行修改：
+      console.log('收到AI生成事件:', { prompt, currentCode })
+      
+      if (!prompt) {
+        console.error('AI生成事件缺少prompt参数')
+        return
+      }
+      
+      let success = false
+      try {
+        const currentChart = this.store.getState().currentChart
+        if (!currentChart?.id) {
+          console.error('没有当前图表，无法执行AI生成')
+          alert('请先创建一个图表')
+          return
+        }
+        
+        console.log('开始AI生成，设置加载状态')
+        this.store.setLoading(true)
+        
+        // 根据是否有现有代码构建不同的prompt
+        let finalPrompt = prompt
+        if (currentCode) {
+          finalPrompt = `请基于以下现有的Mermaid代码进行修改：
 
 \`\`\`mermaid
 ${currentCode}
@@ -136,37 +149,37 @@ ${currentCode}
 用户要求：${prompt}
 
 请返回修改后的完整Mermaid代码。`
-            }
-            
-            const mermaidCode = await this.aiService.generateMermaid(finalPrompt);
-            const currentChart = this.store.getState().currentChart;
-            if (currentChart && currentChart.id) {
-              this.store.updateChart(currentChart.id, { mermaidCode });
-              
-              // 触发实时渲染
-              setTimeout(() => {
-                const event = new CustomEvent('mermaid-update', { detail: { code: mermaidCode } })
-                document.dispatchEvent(event)
-              }, 100)
-              
-              success = true
-            } else {
-              alert('没有选中的图表，无法更新。');
-            }
-          } else {
-            alert('请先选择一个图表');
-          }
-        } catch (error) {
-          console.error('AI生成失败:', error)
-          alert(error instanceof Error ? error.message : 'AI生成失败')
-        } finally {
-          this.store.setLoading(false)
-          
-          // 触发AI生成完成事件
-          document.dispatchEvent(new CustomEvent('ai-generation-complete', {
-            detail: { success }
-          }))
         }
+        
+        console.log('调用AI服务生成代码')
+        const mermaidCode = await this.aiService.generateMermaid(finalPrompt)
+        
+        console.log('AI生成成功，更新图表代码')
+        this.store.updateChart(currentChart.id, { mermaidCode })
+        
+        // 触发实时渲染
+        setTimeout(() => {
+          console.log('触发预览更新')
+          const event = new CustomEvent('mermaid-update', { detail: { code: mermaidCode } })
+          document.dispatchEvent(event)
+        }, 100)
+        
+        success = true
+        console.log('AI生成完成')
+        
+      } catch (error) {
+        console.error('AI生成失败:', error)
+        const errorMessage = error instanceof Error ? error.message : 'AI生成失败'
+        alert(errorMessage)
+      } finally {
+        console.log('清除加载状态')
+        this.store.setLoading(false)
+        
+        // 触发AI生成完成事件
+        console.log('触发AI生成完成事件:', { success })
+        document.dispatchEvent(new CustomEvent('ai-generation-complete', {
+          detail: { success }
+        }))
       }
     })
   }

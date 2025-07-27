@@ -136,15 +136,38 @@ export class Editor {
     })
 
     // AI生成按钮
-    aiGenerateBtn?.addEventListener('click', () => {
+    aiGenerateBtn?.addEventListener('click', (e) => {
+      e.preventDefault() // 防止默认行为
+      
+      // 检查按钮是否被禁用
+      if (aiGenerateBtn.disabled) {
+        console.log('按钮已禁用，忽略点击')
+        return
+      }
+      
       const prompt = aiPrompt?.value.trim()
       if (!prompt) {
         alert('请输入AI生成提示词')
         return
       }
+      
+      // 检查是否正在加载中
+      const state = this.store.getState()
+      if (state.isLoading) {
+        console.log('正在处理中，请稍候')
+        return
+      }
+      
+      // 检查是否有当前图表
+      if (!state.currentChart) {
+        alert('请先创建一个图表')
+        return
+      }
 
       // 获取当前代码区域的内容
       const currentCode = this.textarea?.value.trim() || ''
+      
+      console.log('触发AI生成事件:', { prompt, currentCode })
       
       // 点击生成按钮后恢复输入框高度
       aiPrompt.style.height = '40px'
