@@ -56,28 +56,7 @@ export class StorageService {
     return response.json();
   }
 
-  // NocoDB API 请求（用于表结构操作）
-  private static async apiRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
-    const config = this.getNocoDBConfig();
-    if (!config || !config.baseUrl || !config.apiToken) {
-      throw new Error('NocoDB配置不完整');
-    }
 
-    const url = `${config.baseUrl}/api/v2${endpoint}`;
-    const headers = {
-      'Content-Type': 'application/json',
-      'xc-token': config.apiToken,
-    };
-
-    const response = await fetch(url, { ...options, headers });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'NocoDB API请求失败');
-    }
-
-    return response.json();
-  }
 
   // 检查并创建必要的表字段
   static async ensureTableStructure(): Promise<void> {
@@ -87,64 +66,20 @@ export class StorageService {
     }
 
     try {
-      // 获取表的字段信息
-      const tableInfo = await this.apiRequest(`/tables/${config.tableId}`);
-      const existingColumns = tableInfo.columns || [];
-      
-      // 定义需要的字段
-      const requiredColumns = [
-        {
-          column_name: 'id',
-          title: 'ID',
-          uidt: 'ID', // 主键类型
-          pk: true
-        },
-        {
-          column_name: 'title',
-          title: '标题',
-          uidt: 'SingleLineText', // 单行文本
-          rqd: false // 非必填
-        },
-        {
-          column_name: 'mermaidCode',
-          title: 'Mermaid代码',
-          uidt: 'LongText', // 长文本
-          rqd: false
-        },
-        {
-          column_name: 'createdAt',
-          title: '创建时间',
-          uidt: 'DateTime', // 日期时间
-          rqd: false
-        },
-        {
-          column_name: 'updatedAt',
-          title: '更新时间',
-          uidt: 'DateTime',
-          rqd: false
-        }
-      ];
-
-      // 检查并创建缺失的字段
-      for (const requiredCol of requiredColumns) {
-        const existingCol = existingColumns.find(
-          (col: any) => col.column_name === requiredCol.column_name
-        );
-        
-        if (!existingCol) {
-          console.log(`创建字段: ${requiredCol.column_name}`);
-          await this.apiRequest(`/tables/${config.tableId}/columns`, {
-            method: 'POST',
-            body: JSON.stringify(requiredCol)
-          });
-        }
-      }
-      
-      console.log('表结构检查完成');
+      // 首先尝试简单的数据查询来验证表是否存在和可访问
+      await this.request('?limit=1');
+      console.log('表访问验证成功，跳过字段检查');
+      return;
     } catch (error) {
       console.error('表结构检查失败:', error);
-      if (error instanceof Error && error.message.includes('404')) {
-        throw new Error(`表ID "${config.tableId}" 不存在，请检查NocoDB配置中的表ID是否正确`);
+      if (error instanceof Error) {
+        if (error.message.includes('404')) {
+          throw new Error(`表ID "${config.tableId}" 不存在，请检查NocoDB配置中的表ID是否正确`);
+        } else if (error.message.includes('401') || error.message.includes('403')) {
+          throw new Error('API Token无效或权限不足，请检查NocoDB配置中的API Token');
+        } else if (error.message.includes('ENOTFOUND') || error.message.includes('network')) {
+          throw new Error('无法连接到NocoDB服务器，请检查Base URL是否正确');
+        }
       }
       throw new Error(`表结构检查失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }

@@ -107,19 +107,41 @@ export class ConfigModal {
 
         <div>
           <h3 class="text-lg font-semibold mb-2">NocoDB配置</h3>
-          <p class="text-sm text-gray-600 mb-3">只需配置URL、API密钥和表格名称，程序会自动检查并创建所需字段</p>
+          <p class="text-sm text-gray-600 mb-3">配置NocoDB数据库连接，用于保存和管理图表数据</p>
           <div class="space-y-2">
             <div>
               <label class="block text-sm font-medium mb-1">Base URL</label>
               <input type="text" id="nocodb-base-url" class="w-full border rounded px-3 py-2" placeholder="https://app.nocodb.com">
+              <p class="text-xs text-gray-500 mt-1">NocoDB实例的完整URL地址</p>
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">API Token</label>
               <input type="password" id="nocodb-api-token" class="w-full border rounded px-3 py-2" placeholder="输入API Token">
+              <p class="text-xs text-gray-500 mt-1">在NocoDB中生成的API访问令牌</p>
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">表格ID</label>
               <input type="text" id="nocodb-table-id" class="w-full border rounded px-3 py-2" placeholder="输入表格ID">
+              <p class="text-xs text-gray-500 mt-1">要存储图表数据的表格ID</p>
+            </div>
+          </div>
+          
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+            <div class="flex items-start">
+              <svg class="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+              </svg>
+              <div class="text-sm">
+                <p class="font-medium text-blue-800 mb-1">NocoDB 配置说明</p>
+                <p class="text-blue-700">请确保您的NocoDB表包含以下字段：</p>
+                <ul class="text-blue-700 mt-1 ml-4 list-disc text-xs">
+                  <li><code>id</code> - 主键字段</li>
+                  <li><code>title</code> - 单行文本字段</li>
+                  <li><code>mermaidCode</code> - 长文本字段</li>
+                  <li><code>createdAt</code> - 日期时间字段</li>
+                  <li><code>updatedAt</code> - 日期时间字段</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
