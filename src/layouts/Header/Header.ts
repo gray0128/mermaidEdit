@@ -93,8 +93,6 @@ export class Header {
       }
       
       try {
-        // 设置保存中状态
-        this.store.setLoading(true)
         this.showSaveNotification('保存中...', 'info')
         
         let chartTitle = currentChart.title
@@ -122,6 +120,9 @@ export class Header {
             chartTitle = this.generateDefaultTitle(currentChart.mermaidCode)
           }
         }
+        
+        // 设置保存中状态（在AI生成标题完成后）
+        this.store.setLoading(true)
         
         // 更新图表数据
         const updatedChart = {

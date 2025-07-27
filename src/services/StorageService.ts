@@ -251,7 +251,19 @@ export class StorageService {
   }
 
   static async getChart(id: string): Promise<ChartData | null> {
-    return this.request(`/${id}`);
+    // 如果是本地临时ID，直接从本地数据库获取
+    if (id.startsWith('chart-') || id.startsWith('default-')) {
+      const db = await this.getDB();
+      return await db.get('charts', id) || null;
+    }
+    
+    try {
+      return await this.request(`/${id}`);
+    } catch (error) {
+      // 如果从 NocoDB 获取失败，尝试从本地获取
+      const db = await this.getDB();
+      return await db.get('charts', id) || null;
+    }
   }
 
   static async deleteChart(id: string): Promise<void> {
