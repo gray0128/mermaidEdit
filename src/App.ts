@@ -2,6 +2,7 @@ import { Header } from '@/layouts/Header/Header'
 import { SplitView } from '@/layouts/SplitView/SplitView'
 import { ConfigModal } from '@/components/ConfigModal/ConfigModal'
 import { ShareModal } from '@/components/ShareModal/ShareModal'
+import { ChartList } from '@/components/ChartList/ChartList'
 import { StorageService } from '@/services/StorageService'
 import { AIService } from '@/services/AIService'
 import { ExportService } from '@/services/ExportService'
@@ -46,6 +47,15 @@ export class App {
       this.store.setCurrentChart(defaultChart);
     }
 
+    // 加载图表列表
+    try {
+      const charts = await StorageService.getAllCharts();
+      console.log(`成功加载 ${charts.length} 个图表`);
+      charts.forEach(chart => this.store.addChart(chart));
+    } catch (error) {
+      console.warn('加载图表列表失败，将从空列表开始:', error);
+    }
+    
     // 同步离线数据
     await StorageService.syncOfflineQueue();
     // 定期同步
@@ -57,9 +67,25 @@ export class App {
     const header = new Header(this.store)
     this.container.appendChild(header.render())
     
+    // 创建主容器
+    const mainContainer = document.createElement('div')
+    mainContainer.className = 'flex flex-1 overflow-hidden'
+    
+    // 创建图表列表侧边栏
+    const chartList = new ChartList(this.store)
+    const sidebar = document.createElement('div')
+    sidebar.className = 'w-80 border-r border-gray-200 bg-gray-50 flex-shrink-0'
+    sidebar.appendChild(chartList.render())
+    mainContainer.appendChild(sidebar)
+    
     // 创建主视图
     const mainView = new SplitView(this.store)
-    this.container.appendChild(mainView.render())
+    const mainContent = document.createElement('div')
+    mainContent.className = 'flex-1 overflow-hidden'
+    mainContent.appendChild(mainView.render())
+    mainContainer.appendChild(mainContent)
+    
+    this.container.appendChild(mainContainer)
   }
 
   private bindEvents(): void {

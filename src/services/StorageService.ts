@@ -177,8 +177,25 @@ export class StorageService {
   }
 
   static async getAllCharts(): Promise<ChartData[]> {
-    const data = await this.request('');
-    return data.list;
+    try {
+      // 首先尝试从NocoDB获取
+      const data = await this.request('');
+      return data.list || [];
+    } catch (error) {
+      console.warn('从NocoDB获取图表失败，使用本地数据:', error);
+      // 降级到本地IndexedDB
+      try {
+        const db = await this.getDB();
+        const tx = db.transaction('charts', 'readonly');
+        const store = tx.objectStore('charts');
+        const charts = await store.getAll();
+        await tx.done;
+        return charts || [];
+      } catch (localError) {
+        console.error('从本地数据库获取图表失败:', localError);
+        return [];
+      }
+    }
   }
 
   static async getChartsFromNocoDB(): Promise<ChartData[]> {

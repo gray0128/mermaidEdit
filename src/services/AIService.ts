@@ -165,6 +165,160 @@ export class AIService {
     return null;
   }
 
+  /**
+   * 基于Mermaid代码生成有意义的图表标题
+   * @param mermaidCode Mermaid图表代码
+   * @returns 生成的图表标题
+   */
+  async generateChartTitle(mermaidCode: string): Promise<string> {
+    if (!this.config) {
+      throw new Error('AI配置未设置');
+    }
+
+    const { apiKey, model, baseUrl, authType = 'bearer', customHeaders = {} } = this.config;
+
+    if (!apiKey || !model || !baseUrl) {
+      throw new Error('请完整填写API地址、密钥和模型名称');
+    }
+
+    // 构建专门用于生成标题的消息
+    const messages = [
+      {
+        role: 'system',
+        content: `你是一个专业的图表分析专家。你的任务是分析Mermaid图表代码，理解其表达的内容和逻辑，然后生成一个简洁、准确、有意义的中文标题。
+
+## 标题生成原则
+1. **简洁明了**: 标题长度控制在2-15个字符
+2. **准确描述**: 准确反映图表的主要内容和用途
+3. **专业术语**: 使用恰当的专业术语，避免过于口语化
+4. **中文输出**: 必须使用中文标题
+5. **避免冗余**: 不要包含"图表"、"流程图"等后缀词
+
+## 标题类型示例
+- 流程图: "用户注册流程"、"订单处理"、"系统架构"
+- 时序图: "API调用时序"、"用户登录交互"、"支付流程"
+- 类图: "用户管理模型"、"订单系统设计"、"数据结构"
+- 状态图: "订单状态机"、"用户生命周期"、"任务状态"
+- 甘特图: "项目进度计划"、"开发时间线"、"里程碑规划"
+- 思维导图: "产品功能规划"、"技术选型"、"知识体系"
+
+## 分析步骤
+1. 识别图表类型（flowchart、sequenceDiagram、classDiagram等）
+2. 提取关键节点和关系信息
+3. 理解图表表达的业务逻辑或技术概念
+4. 生成简洁准确的标题
+
+## 输出要求
+- 只返回标题文本，不包含任何解释或标点符号
+- 不要使用引号包围标题
+- 如果无法理解图表内容，返回"未命名图表"`
+      },
+      {
+        role: 'user',
+        content: `请为以下Mermaid图表代码生成一个合适的中文标题：\n\n${mermaidCode}`
+      }
+    ];
+
+    // 构建请求头
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...customHeaders
+    };
+
+    // 根据认证类型设置认证头
+    switch (authType) {
+      case 'bearer':
+        headers['Authorization'] = `Bearer ${apiKey}`;
+        break;
+      case 'api-key':
+        headers['x-api-key'] = apiKey;
+        break;
+      case 'custom':
+        // 自定义认证方式通过customHeaders传入
+        break;
+    }
+
+    // 构建请求体
+    const body = {
+      model,
+      messages,
+      temperature: 0.3, // 稍微提高创造性，但保持一致性
+      max_tokens: 50 // 标题不需要太多token
+    };
+
+    try {
+      const response = await fetch(baseUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API请求失败 (${response.status}): ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      // 智能解析响应内容
+      const content = this.extractContent(data);
+      
+      if (!content) {
+        throw new Error('无法从API响应中提取内容');
+      }
+
+      // 清理和验证标题
+      const title = this.cleanTitle(content);
+      return title || '未命名图表';
+    } catch (error) {
+      console.error('AI生成标题失败:', error);
+      // 降级方案：返回默认标题
+      return this.generateFallbackTitle(mermaidCode);
+    }
+  }
+
+  /**
+   * 清理AI生成的标题
+   */
+  private cleanTitle(title: string): string {
+    return title
+      .trim()
+      .replace(/^["'`]/, '') // 移除开头的引号
+      .replace(/["'`]$/, '') // 移除结尾的引号
+      .replace(/[。！？.!?]$/, '') // 移除结尾的标点符号
+      .substring(0, 20); // 限制长度
+  }
+
+  /**
+   * 生成降级标题（当AI调用失败时）
+   */
+  private generateFallbackTitle(mermaidCode: string): string {
+    const code = mermaidCode.toLowerCase();
+    
+    // 根据图表类型生成基础标题
+    if (code.includes('flowchart') || code.includes('graph')) {
+      return '流程图';
+    } else if (code.includes('sequencediagram')) {
+      return '时序图';
+    } else if (code.includes('classdiagram')) {
+      return '类图';
+    } else if (code.includes('statediagram')) {
+      return '状态图';
+    } else if (code.includes('gantt')) {
+      return '甘特图';
+    } else if (code.includes('pie')) {
+      return '饼图';
+    } else if (code.includes('mindmap')) {
+      return '思维导图';
+    } else if (code.includes('erdiagram')) {
+      return '实体关系图';
+    } else if (code.includes('journey')) {
+      return '用户旅程图';
+    } else {
+      return `图表_${new Date().toLocaleDateString()}`;
+    }
+  }
+
   private cleanMermaidCode(code: string): string {
     // 移除可能的markdown代码块标记
     return code
