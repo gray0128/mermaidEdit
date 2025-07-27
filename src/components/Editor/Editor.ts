@@ -19,6 +19,7 @@ export class Editor {
     this.element.innerHTML = `
       <div class="p-4 border-b border-gray-200">
         <h2 class="text-lg font-semibold text-gray-900">Mermaid代码</h2>
+        <p class="text-sm text-gray-500 mt-1">实时预览，输入即可看到效果</p>
       </div>
       <div class="flex-1 p-4">
         <textarea 
@@ -27,10 +28,7 @@ export class Editor {
           placeholder="在此输入Mermaid图表代码..."
         ></textarea>
       </div>
-      <div class="p-4 border-t border-gray-200 space-y-2">
-        <button id="generate-btn" class="btn-primary w-full">
-          生成图表
-        </button>
+      <div class="p-4 border-t border-gray-200">
         <div class="flex space-x-2">
           <input 
             type="text" 
@@ -53,18 +51,30 @@ export class Editor {
   }
 
   private bindEvents() {
-    const generateBtn = this.element.querySelector('#generate-btn')
     const aiPrompt = this.element.querySelector('#ai-prompt') as HTMLInputElement
     const aiGenerateBtn = this.element.querySelector('#ai-generate-btn')
     
-    generateBtn?.addEventListener('click', () => this.handleGenerate())
+    // 防抖定时器
+    let debounceTimer: NodeJS.Timeout
     
     this.textarea?.addEventListener('input', () => {
       const state = this.store.getState()
       if (state.currentChart) {
+        // 更新状态（立即更新，用于保存）
         this.store.updateChart(state.currentChart.id, {
           mermaidCode: this.textarea!.value
         })
+        
+        // 防抖渲染（300ms 延迟）
+        clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(() => {
+          const code = this.textarea!.value.trim()
+          if (code) {
+            // 触发预览更新
+            const event = new CustomEvent('mermaid-update', { detail: { code } })
+            document.dispatchEvent(event)
+          }
+        }, 300)
       }
     })
 
@@ -96,14 +106,5 @@ export class Editor {
     }
   }
 
-  private handleGenerate() {
-    if (this.textarea) {
-      const code = this.textarea.value.trim()
-      if (code) {
-        // 触发预览更新
-        const event = new CustomEvent('mermaid-update', { detail: { code } })
-        document.dispatchEvent(event)
-      }
-    }
-  }
+
 }
