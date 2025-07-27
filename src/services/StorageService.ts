@@ -105,7 +105,7 @@ export class StorageService {
       if (updatedChart.id !== chart.id) {
         await db.put('charts', updatedChart);
         // 如果原来有临时ID，删除旧记录
-        if (chart.id && chart.id.startsWith('chart-')) {
+        if (chart.id && (chart.id.startsWith('chart-') || chart.id.startsWith('default-'))) {
           await db.delete('charts', chart.id);
         }
       }
@@ -128,7 +128,7 @@ export class StorageService {
       updatedAt: chart.updatedAt instanceof Date ? chart.updatedAt.toISOString() : chart.updatedAt
     };
 
-    if (chart.id && chart.id.startsWith('chart-')) {
+    if (chart.id && (chart.id.startsWith('chart-') || chart.id.startsWith('default-'))) {
       // 这是一个本地生成的临时ID，需要创建新记录
       const response = await this.request('', { 
         method: 'POST',
@@ -230,7 +230,7 @@ export class StorageService {
             // 如果 ID 发生了变化，更新本地数据库
             if (updatedChart.id !== chart.id) {
               await db.put('charts', updatedChart);
-              if (chart.id && chart.id.startsWith('chart-')) {
+              if (chart.id && (chart.id.startsWith('chart-') || chart.id.startsWith('default-'))) {
                 await db.delete('charts', chart.id);
               }
             }
