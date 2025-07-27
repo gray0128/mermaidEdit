@@ -48,8 +48,8 @@
   - 配置界面包含：
     - API 地址（文本输入框，必填）
     - API Key（密码输入框，必填）
-    - 表名（文本输入框，必填，默认值：mermaid_charts）
-  - 自动创建表结构（如表不存在）
+    - 表格ID（文本输入框，必填）
+  - 自动字段检查：程序会自动检查并创建所需字段（id、title、mermaidCode、createdAt、updatedAt）
   - 实时同步（每次修改后 1 秒内同步）
   - 离线缓存（IndexedDB），网络恢复后自动同步
 
@@ -144,10 +144,9 @@ interface AIConfig {
 }
 
 interface NocoDBConfig {
-  baseUrl: string;
-  apiToken: string;
-  projectId: string;
-  tableId: string;
+  baseUrl: string;     // NocoDB实例地址
+  apiToken: string;    // API访问令牌
+  tableId: string;     // 表格ID（程序会自动检查并创建所需字段）
 }
 
 interface ChartData {
