@@ -129,10 +129,11 @@ export class StorageService {
     };
 
     if (chart.id && (chart.id.startsWith('chart-') || chart.id.startsWith('default-'))) {
-      // 这是一个本地生成的临时ID，需要创建新记录
+      // 这是一个本地生成的临时ID，需要创建新记录，不发送id字段
+      const { id, ...dataWithoutId } = chartData;
       const response = await this.request('', { 
         method: 'POST',
-        body: JSON.stringify(chartData) 
+        body: JSON.stringify(dataWithoutId) 
       });
       return { ...chart, id: response.Id || response.id };
     } else if (chart.id) {
@@ -143,10 +144,11 @@ export class StorageService {
       });
       return chart;
     } else {
-      // 创建新记录
+      // 创建新记录，不发送id字段
+      const { id, ...dataWithoutId } = chartData;
       const response = await this.request('', { 
         method: 'POST',
-        body: JSON.stringify(chartData) 
+        body: JSON.stringify(dataWithoutId) 
       });
       return { ...chart, id: response.Id || response.id };
     }
