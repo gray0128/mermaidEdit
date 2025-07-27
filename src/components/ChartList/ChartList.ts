@@ -43,9 +43,9 @@ export class ChartList {
     const { charts, currentChart } = state
 
     this.element.innerHTML = `
-      <div class="p-4 border-b border-gray-200 bg-white">
-        <h2 class="text-lg font-semibold text-gray-900">图表列表</h2>
-        <p class="text-sm text-gray-500 mt-1">共 ${charts.length} 个图表</p>
+      <div class="px-4 py-3 border-b border-gray-200 bg-white">
+        <h2 class="text-base font-semibold text-gray-900">图表列表</h2>
+        <p class="text-xs text-gray-500 mt-0.5">共 ${charts.length} 个图表</p>
       </div>
       
       <div class="flex-1 overflow-y-auto">

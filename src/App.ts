@@ -12,6 +12,10 @@ export class App {
   private container: HTMLElement
   private store: AppStore
   private aiService: AIService
+  private sidebarCollapsed: boolean = false
+  private sidebar: HTMLElement | null = null
+  private sidebarContainer: HTMLElement | null = null
+  private toggleButton: HTMLElement | null = null
 
   constructor(container: HTMLElement) {
     this.container = container
@@ -69,23 +73,47 @@ export class App {
     
     // 创建主容器
     const mainContainer = document.createElement('div')
-    mainContainer.className = 'flex flex-1 overflow-hidden'
+    mainContainer.className = 'flex flex-1 h-full overflow-hidden relative'
+    
+    // 创建侧边栏容器（包含图表列表和切换按钮）
+    this.sidebarContainer = document.createElement('div')
+    this.sidebarContainer.className = 'relative flex-shrink-0 transition-all duration-300 ease-in-out'
+    this.sidebarContainer.style.width = '320px'
     
     // 创建图表列表侧边栏
     const chartList = new ChartList(this.store)
-    const sidebar = document.createElement('div')
-    sidebar.className = 'w-80 border-r border-gray-200 bg-gray-50 flex-shrink-0'
-    sidebar.appendChild(chartList.render())
-    mainContainer.appendChild(sidebar)
+    this.sidebar = document.createElement('div')
+    this.sidebar.className = 'w-full h-full border-r border-gray-200 bg-gray-50'
+    this.sidebar.appendChild(chartList.render())
+    this.sidebarContainer.appendChild(this.sidebar)
+    
+    // 创建切换按钮（固定定位，位于侧边栏右侧中间）
+    this.toggleButton = document.createElement('button')
+    this.toggleButton.className = 'fixed z-20 w-6 h-6 bg-white rounded-full shadow-md hover:shadow-lg hover:bg-gray-50 transition-all duration-200 flex items-center justify-center'
+    this.toggleButton.style.left = '320px' // 紧贴侧边栏右边缘
+    this.toggleButton.style.top = '50%'
+    this.toggleButton.style.transform = 'translateY(-50%)'
+    this.toggleButton.innerHTML = `
+      <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+      </svg>
+    `
+    this.toggleButton.title = '收起侧边栏'
+    document.body.appendChild(this.toggleButton)
+    
+    mainContainer.appendChild(this.sidebarContainer)
     
     // 创建主视图
     const mainView = new SplitView(this.store)
     const mainContent = document.createElement('div')
-    mainContent.className = 'flex-1 overflow-hidden'
+    mainContent.className = 'flex-1 h-full overflow-hidden'
     mainContent.appendChild(mainView.render())
     mainContainer.appendChild(mainContent)
     
     this.container.appendChild(mainContainer)
+    
+    // 绑定切换事件
+    this.bindToggleEvents()
   }
 
   private bindEvents(): void {
@@ -208,5 +236,51 @@ ${currentCode}
         }))
       }
     })
+  }
+
+  private bindToggleEvents(): void {
+    if (!this.toggleButton || !this.sidebar) return
+    
+    this.toggleButton.addEventListener('click', () => {
+      this.toggleSidebar()
+    })
+    
+    // 键盘快捷键 Ctrl/Cmd + B
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault()
+        this.toggleSidebar()
+      }
+    })
+  }
+
+  private toggleSidebar(): void {
+    if (!this.sidebarContainer || !this.toggleButton) return
+    
+    this.sidebarCollapsed = !this.sidebarCollapsed
+    
+    if (this.sidebarCollapsed) {
+      // 收起侧边栏
+      this.sidebarContainer.style.width = '0px'
+      this.sidebarContainer.style.overflow = 'hidden'
+      this.toggleButton.style.left = '8px' // 移动到左侧边缘
+      this.toggleButton.innerHTML = `
+        <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+        </svg>
+      `
+      this.toggleButton.title = '展开侧边栏'
+    } else {
+      // 展开侧边栏
+      this.sidebarContainer.style.width = '320px'
+      this.sidebarContainer.style.overflow = 'visible'
+      this.toggleButton.style.left = '320px' // 紧贴侧边栏右边缘
+      this.toggleButton.innerHTML = `
+        <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+      `
+      this.toggleButton.title = '收起侧边栏'
+    }
   }
 }
