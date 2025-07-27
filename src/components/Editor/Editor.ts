@@ -212,6 +212,11 @@ export class Editor {
     const state = this.store.getState()
     if (this.textarea && state.currentChart) {
       this.textarea.value = state.currentChart.mermaidCode
+      
+      // 触发预览更新
+      const code = state.currentChart.mermaidCode.trim()
+      const event = new CustomEvent('mermaid-update', { detail: { code } })
+      document.dispatchEvent(event)
     }
   }
 

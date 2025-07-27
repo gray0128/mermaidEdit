@@ -28,6 +28,12 @@ export class Preview {
     
     this.render()
     this.bindEvents()
+    
+    // 初始渲染当前图表
+    const state = this.store.getState()
+    if (state.currentChart && state.currentChart.mermaidCode.trim()) {
+      this.renderChart(state.currentChart.mermaidCode)
+    }
   }
 
   render(): HTMLElement {
