@@ -33,6 +33,19 @@ export class App {
       this.aiService.setConfig(aiConfig);
     }
 
+    // 创建默认图表（如果没有当前图表）
+    const state = this.store.getState();
+    if (!state.currentChart) {
+      const defaultChart = {
+        id: 'default-' + Date.now(),
+        title: '新建图表',
+        mermaidCode: 'graph TD\n    A[开始] --> B[输入Mermaid代码]\n    B --> C[实时预览]\n    C --> D[完成]',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      this.store.setCurrentChart(defaultChart);
+    }
+
     // 同步离线数据
     await StorageService.syncOfflineQueue();
     // 定期同步

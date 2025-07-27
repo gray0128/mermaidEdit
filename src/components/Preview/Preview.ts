@@ -8,6 +8,11 @@ export class Preview {
   private currentScale: number = 1
   private minScale: number = 0.1
   private maxScale: number = 3
+  private isDragging: boolean = false
+  private dragStartX: number = 0
+  private dragStartY: number = 0
+  private translateX: number = 0
+  private translateY: number = 0
 
   constructor(store: AppStore) {
     this.store = store
@@ -49,7 +54,7 @@ export class Preview {
         </div>
       </div>
       <div class="flex-1 p-4 overflow-auto" id="preview-scroll-container">
-        <div id="mermaid-preview" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 min-h-full transition-transform duration-200" style="transform: scale(${this.currentScale}); transform-origin: top left;">
+        <div id="mermaid-preview" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 min-h-full transition-transform duration-200" style="transform: translate(${this.translateX}px, ${this.translateY}px) scale(${this.currentScale}); transform-origin: top left;">
           <div class="text-center text-gray-500 py-8">
             <p>输入Mermaid代码即可看到实时预览</p>
           </div>
@@ -58,6 +63,10 @@ export class Preview {
     `
 
     this.previewContainer = this.element.querySelector('#mermaid-preview')
+    
+    // 绑定缩放控制事件（在DOM创建后立即绑定）
+    this.bindZoomEvents()
+    
     return this.element
   }
 
@@ -75,7 +84,9 @@ export class Preview {
         this.renderChart(state.currentChart.mermaidCode)
       }
     })
+  }
 
+  private bindZoomEvents() {
     // 缩放控制事件
     const zoomInBtn = this.element.querySelector('#zoom-in')
     const zoomOutBtn = this.element.querySelector('#zoom-out')
@@ -98,6 +109,54 @@ export class Preview {
         }
       }
     })
+
+    // 添加拖拽功能
+    this.bindDragEvents()
+  }
+
+  private bindDragEvents() {
+    if (!this.previewContainer) return
+
+    // 鼠标按下开始拖拽
+    this.previewContainer.addEventListener('mousedown', (e: MouseEvent) => {
+      this.isDragging = true
+      this.dragStartX = e.clientX - this.translateX
+      this.dragStartY = e.clientY - this.translateY
+      this.previewContainer!.style.cursor = 'grabbing'
+      e.preventDefault()
+    })
+
+    // 鼠标移动时拖拽 - 直接更新，不使用RAF以获得最佳响应性
+    document.addEventListener('mousemove', (e: MouseEvent) => {
+      if (!this.isDragging) return
+      
+      // 立即更新位置，确保跟手性
+      this.translateX = e.clientX - this.dragStartX
+      this.translateY = e.clientY - this.dragStartY
+      
+      // 直接更新transform，获得最佳响应速度
+      if (this.previewContainer) {
+        this.previewContainer.style.transform = `translate(${this.translateX}px, ${this.translateY}px) scale(${this.currentScale})`
+      }
+    })
+
+    // 鼠标松开结束拖拽
+    document.addEventListener('mouseup', () => {
+      if (this.isDragging) {
+        this.isDragging = false
+        this.previewContainer!.style.cursor = 'grab'
+      }
+    })
+
+    // 设置初始光标样式
+    this.previewContainer.style.cursor = 'grab'
+    
+    // 防止拖拽时选中文本
+    this.previewContainer.addEventListener('selectstart', (e) => {
+      if (this.isDragging) {
+        e.preventDefault()
+      }
+    })
   }
 
   private zoomIn() {
@@ -116,19 +175,26 @@ export class Preview {
 
   private resetZoom() {
     this.currentScale = 1
+    this.translateX = 0
+    this.translateY = 0
     this.updateZoom()
   }
 
   private updateZoom() {
-    const previewElement = this.element.querySelector('#mermaid-preview') as HTMLElement
     const zoomLevelElement = this.element.querySelector('#zoom-level') as HTMLElement
-    
-    if (previewElement) {
-      previewElement.style.transform = `scale(${this.currentScale})`
-    }
     
     if (zoomLevelElement) {
       zoomLevelElement.textContent = `${Math.round(this.currentScale * 100)}%`
+    }
+    
+    this.updateTransform()
+  }
+
+  private updateTransform() {
+    const previewElement = this.element.querySelector('#mermaid-preview') as HTMLElement
+    
+    if (previewElement) {
+      previewElement.style.transform = `translate(${this.translateX}px, ${this.translateY}px) scale(${this.currentScale})`
     }
   }
 

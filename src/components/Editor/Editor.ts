@@ -18,8 +18,10 @@ export class Editor {
   render(): HTMLElement {
     this.element.innerHTML = `
       <div class="p-4 border-b border-gray-200">
-        <h2 class="text-lg font-semibold text-gray-900">Mermaid代码</h2>
-        <p class="text-sm text-gray-500 mt-1">实时预览，输入即可看到效果</p>
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold text-gray-900">Mermaid代码</h2>
+          <span class="text-sm text-gray-500">实时预览，输入即可看到效果</span>
+        </div>
       </div>
       <div class="flex-1 p-4">
         <textarea 
@@ -29,13 +31,13 @@ export class Editor {
         ></textarea>
       </div>
       <div class="p-4 border-t border-gray-200">
-        <div class="flex space-x-2">
-          <input 
-            type="text" 
+          <div class="flex items-start space-x-2">
+          <textarea 
             id="ai-prompt" 
-            class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" 
+            class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm resize-none transition-all duration-200" 
+            style="height: 40px; min-height: 40px;"
             placeholder="用AI生成图表，如：创建一个用户登录流程图"
-          >
+          ></textarea>
           <button id="ai-generate-btn" class="btn-secondary px-4 py-2 text-sm">
             AI生成
           </button>
@@ -51,7 +53,7 @@ export class Editor {
   }
 
   private bindEvents() {
-    const aiPrompt = this.element.querySelector('#ai-prompt') as HTMLInputElement
+    const aiPrompt = this.element.querySelector('#ai-prompt') as HTMLTextAreaElement
     const aiGenerateBtn = this.element.querySelector('#ai-generate-btn')
     
     // 防抖定时器
@@ -78,6 +80,17 @@ export class Editor {
       }
     })
 
+    // AI输入框动态高度调整
+    aiPrompt?.addEventListener('focus', () => {
+      // 获得焦点时增加高度
+      aiPrompt.style.height = '320px'
+    })
+
+    aiPrompt?.addEventListener('blur', () => {
+      // 失去焦点时恢复原始高度
+      aiPrompt.style.height = '40px'
+    })
+
     // AI生成按钮
     aiGenerateBtn?.addEventListener('click', () => {
       const prompt = aiPrompt?.value.trim()
@@ -86,15 +99,20 @@ export class Editor {
         return
       }
 
+      // 点击生成按钮后恢复输入框高度
+       aiPrompt.style.height = '40px'
+       aiPrompt.blur() // 移除焦点
+
       document.dispatchEvent(new CustomEvent('generate-with-ai', {
         detail: { prompt }
       }))
     })
 
-    // AI提示框回车事件
+    // AI提示框回车事件（Ctrl+Enter或Cmd+Enter提交）
     aiPrompt?.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter' && aiGenerateBtn) {
-        (aiGenerateBtn as HTMLButtonElement).click();
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && aiGenerateBtn) {
+        e.preventDefault()
+        ;(aiGenerateBtn as HTMLButtonElement).click()
       }
     })
   }
