@@ -38,7 +38,7 @@
 #### 2.1.1 UI 组件层
 ```typescript
 // 模块结构
-ui/
+src/
 ├── components/          // 基础组件
 │   ├── Editor/         // 代码编辑器组件
 │   ├── Preview/        // 图表预览组件
@@ -48,50 +48,48 @@ ui/
 │   ├── Header/         // 顶部导航
 │   └── SplitView/      // 分屏布局
 └── styles/             // 样式文件
-    ├── tailwind.css
-    └── components.css
+    └── main.css        // 主样式文件
 ```
 
 #### 2.1.2 业务逻辑层
 ```typescript
 // 核心服务
 services/
-├── ChartService.ts     // 图表管理服务
 ├── AIService.ts        // AI 生成服务
 ├── StorageService.ts   // 存储服务
-├── ExportService.ts    // 导出服务
-└── ShareService.ts     // 分享服务
+└── ExportService.ts    // 导出服务
 ```
 
 #### 2.1.3 数据管理层
 ```typescript
 // 数据管理
 store/
-├── ChartStore.ts       // 图表状态管理
-├── ConfigStore.ts      // 配置状态管理
-└── SyncStore.ts        // 同步状态管理
+└── AppStore.ts         // 应用状态管理（统一状态管理）
+
+types/
+└── index.ts           // 类型定义
 ```
 
 ### 2.2 模块职责说明
 
 | 模块名称 | 主要职责 | 依赖关系 |
 |---------|----------|----------|
-| Editor | 代码编辑、语法高亮、错误提示 | 依赖 ChartStore |
-| Preview | 图表渲染、缩放控制、错误展示 | 依赖 ChartStore、mermaid.js |
-| ChartService | 图表 CRUD 操作、验证、格式化 | 依赖 StorageService |
-| AIService | AI 调用、提示词管理、错误处理 | 依赖 ConfigStore |
-| StorageService | nocodb API 调用、本地缓存 | 依赖 IndexedDB |
-| ExportService | 图表导出、格式转换 | 依赖 Preview |
+| Editor | 代码编辑、AI 提示输入、事件处理 | 依赖 AppStore |
+| Preview | 图表渲染、缩放控制、拖拽、错误展示 | 依赖 AppStore、mermaid.js |
+| AIService | AI 调用、多提供商支持、错误处理 | 独立服务 |
+| StorageService | IndexedDB 操作、NocoDB API 调用、离线同步 | 依赖 idb 库 |
+| ExportService | 图表导出、格式转换 | 独立服务 |
+| AppStore | 统一状态管理、事件订阅 | 核心状态管理 |
 
 ## 3. 数据流设计
 
 ### 3.1 数据流向图
 ```
-用户输入 → Editor → ChartStore → Preview
+用户输入 → Editor → AppStore → Preview
                     ↓
-               StorageService → nocodb API
+               StorageService → IndexedDB
                     ↓
-               IndexedDB (缓存)
+               NocoDB API (可选)
 ```
 
 ### 3.2 状态管理设计
@@ -99,24 +97,18 @@ store/
 #### 3.2.1 全局状态结构
 ```typescript
 interface AppState {
-  chart: {
-    id: string;
-    title: string;
-    content: string;
-    isDirty: boolean;      // 是否有未保存的更改
-    isSyncing: boolean;    // 是否正在同步
-    lastSaved: Date;       // 最后保存时间
-  };
-  config: {
-    ai: AIConfig;
-    nocodb: NocoDBConfig;
-    isConfigured: boolean;
-  };
-  ui: {
-    isLoading: boolean;
-    error: string | null;
-    activeModal: string | null;
-  };
+  currentChart: ChartData | null;
+  charts: ChartData[];
+  isLoading: boolean;
+  error: string | null;
+}
+
+interface ChartData {
+  id: string;
+  title: string;
+  mermaidCode: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
@@ -131,13 +123,13 @@ interface AppState {
 ```typescript
 // 事件定义
 interface AppEvents {
-  'chart:changed': { content: string };
-  'chart:saved': { id: string };
-  'chart:loaded': { chart: ChartData };
-  'config:updated': { type: 'ai' | 'nocodb'; config: any };
-  'error:occurred': { message: string; type: 'error' | 'warning' };
-  'sync:started': void;
-  'sync:completed': { success: boolean };
+  'open-config': void;
+  'share-chart': { chartId: string };
+  'export-png': { svgElement: SVGElement };
+  'export-svg': { svgElement: SVGElement };
+  'export-mermaid': { mermaidCode: string };
+  'generate-with-ai': { prompt: string };
+  'mermaid-updated': { code: string };
 }
 ```
 

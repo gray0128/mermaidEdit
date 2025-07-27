@@ -1,5 +1,5 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import type { ChartData, NocoDBConfig } from '../types';
+import type { ChartData, NocoDBConfig, AIConfig } from '../types';
 
 interface MermaidDB extends DBSchema {
   charts: {
@@ -135,16 +135,16 @@ export class StorageService {
     await tx.done;
   }
 
-  static saveAIConfig(config: any): void {
+  static saveAIConfig(config: AIConfig): void {
     localStorage.setItem(this.AI_CONFIG_KEY, JSON.stringify(config));
   }
 
-  static getAIConfig(): any {
+  static getAIConfig(): AIConfig | null {
     const data = localStorage.getItem(this.AI_CONFIG_KEY);
     return data ? JSON.parse(data) : null;
   }
 
-  static saveNocoDBConfig(config: any): void {
+  static saveNocoDBConfig(config: NocoDBConfig): void {
     localStorage.setItem(this.NOCODB_CONFIG_KEY, JSON.stringify(config));
   }
 

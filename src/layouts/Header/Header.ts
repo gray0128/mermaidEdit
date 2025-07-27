@@ -101,25 +101,11 @@ export class Header {
     })
 
     exportPngBtn?.addEventListener('click', () => {
-      const svgElement = document.querySelector('#preview-container svg')
-      if (svgElement) {
-        document.dispatchEvent(new CustomEvent('export-png', {
-          detail: { svgElement }
-        }))
-      } else {
-        alert('请先生成图表')
-      }
+      this.handleExportWithSvg('export-png')
     })
 
     exportSvgBtn?.addEventListener('click', () => {
-      const svgElement = document.querySelector('#preview-container svg')
-      if (svgElement) {
-        document.dispatchEvent(new CustomEvent('export-svg', {
-          detail: { svgElement }
-        }))
-      } else {
-        alert('请先生成图表')
-      }
+      this.handleExportWithSvg('export-svg')
     })
 
     exportMermaidBtn?.addEventListener('click', () => {
@@ -132,5 +118,16 @@ export class Header {
         alert('请先生成图表')
       }
     })
+  }
+
+  private handleExportWithSvg(eventType: string) {
+    const svgElement = document.querySelector('#preview-container svg')
+    if (svgElement) {
+      document.dispatchEvent(new CustomEvent(eventType, {
+        detail: { svgElement }
+      }))
+    } else {
+      alert('请先生成图表')
+    }
   }
 }

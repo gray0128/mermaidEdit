@@ -191,10 +191,8 @@ export class Preview {
   }
 
   private updateTransform() {
-    const previewElement = this.element.querySelector('#mermaid-preview') as HTMLElement
-    
-    if (previewElement) {
-      previewElement.style.transform = `translate(${this.translateX}px, ${this.translateY}px) scale(${this.currentScale})`
+    if (this.previewContainer) {
+      this.previewContainer.style.transform = `translate(${this.translateX}px, ${this.translateY}px) scale(${this.currentScale})`
     }
   }
 

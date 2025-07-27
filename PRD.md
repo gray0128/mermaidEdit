@@ -16,31 +16,32 @@
 
 #### 2.1.1 图表编辑
 - **代码编辑器**
-  - 支持 mermaid 语法高亮
-  - 支持代码折叠
-  - 支持自动缩进
-  - 支持撤销/重做 (Ctrl+Z/Ctrl+Y)
-  - 支持全屏编辑模式
+  - 基础文本编辑功能
+  - 支持快捷键操作
+  - AI 提示输入框（支持动态高度调整）
+  - 提交快捷键：Ctrl/Cmd + Enter
 
 - **实时预览**
-  - 左右分屏布局（左侧 50% 编辑器，右侧 50% 预览）
-  - 实时渲染图表（延迟 < 500ms）
+  - 左右分屏布局（左侧 40% 编辑器，右侧 60% 预览）
+  - 实时渲染图表
   - 支持图表缩放（鼠标滚轮 + 按钮控制）
+  - 支持图表拖拽移动
   - 支持图表重置视图
 
 #### 2.1.2 AI 辅助生成
 - **配置界面**
   - 提供配置弹窗，包含以下字段：
-    - Base URL（文本输入框，必填）
+    - 提供商选择（OpenAI/Anthropic/自定义）
+    - Base URL（文本输入框，可选）
     - API Key（密码输入框，必填）
-    - 模型名称（文本输入框，必填，默认值：gpt-3.5-turbo）
-  - 配置信息加密后保存在 localStorage
-  - 支持测试连接功能
+    - 模型名称（文本输入框，可选）
+  - 配置信息保存在 localStorage
 
 - **生成功能**
-  - 提供自然语言输入框
-  - 支持生成后替换当前代码或追加到当前代码
+  - 提供自然语言输入框（支持动态高度调整）
+  - 支持生成后替换当前代码
   - 显示生成进度和错误提示
+  - 支持 OpenAI 和 Anthropic 两种 AI 提供商
 
 #### 2.1.3 数据持久化
 - **nocodb 集成**
@@ -107,6 +108,7 @@
 - **图表渲染**：mermaid.js 最新版本
 - **构建工具**：Vite
 - **包管理**：npm
+- **本地存储**：IndexedDB（通过 idb 库）
 
 ### 3.2 浏览器兼容性
 - Chrome 88+
@@ -124,10 +126,9 @@
 ### 4.1 nocodb 表结构
 ```sql
 CREATE TABLE mermaid_charts (
-  id VARCHAR(36) PRIMARY KEY,        -- UUID
+  id VARCHAR(36) PRIMARY KEY,        -- 图表ID
   title VARCHAR(255),                -- 图表标题
-  content TEXT,                      -- mermaid 代码
-  description TEXT,                  -- 图表描述
+  mermaidCode TEXT,                  -- mermaid 代码
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -135,27 +136,26 @@ CREATE TABLE mermaid_charts (
 
 ### 4.2 本地存储结构
 ```typescript
-interface LocalConfig {
-  ai: {
-    baseUrl: string;
-    apiKey: string;
-    model: string;
-  };
-  nocodb: {
-    baseUrl: string;
-    apiKey: string;
-    tableName: string;
-  };
+interface AIConfig {
+  provider: 'openai' | 'anthropic' | 'custom';
+  apiKey: string;
+  baseUrl?: string;
+  model?: string;
+}
+
+interface NocoDBConfig {
+  baseUrl: string;
+  apiToken: string;
+  projectId: string;
+  tableId: string;
 }
 
 interface ChartData {
   id: string;
   title: string;
-  content: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
-  isSynced: boolean;
+  mermaidCode: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
