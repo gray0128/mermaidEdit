@@ -132,20 +132,20 @@ export class Header {
         
         // 保存到存储服务
         const { StorageService } = await import('@/services/StorageService')
-        await StorageService.saveChart(updatedChart)
+        const savedChart = await StorageService.saveChart(updatedChart)
         
         // 更新store中的图表数据
-        this.store.setCurrentChart(updatedChart)
+        this.store.setCurrentChart(savedChart)
         
         // 确保图表在列表中
         const state = this.store.getState()
-        const existingChartIndex = state.charts.findIndex(c => c.id === updatedChart.id)
+        const existingChartIndex = state.charts.findIndex(c => c.id === savedChart.id || c.id === updatedChart.id)
         if (existingChartIndex >= 0) {
           // 更新现有图表
-          this.store.updateChart(updatedChart.id, updatedChart)
+          this.store.updateChart(savedChart.id, savedChart)
         } else {
           // 添加新图表到列表
-          this.store.addChart(updatedChart)
+          this.store.addChart(savedChart)
         }
         
         // 显示保存成功提示

@@ -150,32 +150,70 @@ export class StorageService {
     }
   }
 
-  static async saveChart(chart: ChartData): Promise<void> {
+  static async saveChart(chart: ChartData): Promise<ChartData> {
     const db = await this.getDB();
     await db.put('charts', chart);
+
+    // 检查是否配置了 NocoDB
+    const config = this.getNocoDBConfig();
+    if (!config || !config.baseUrl || !config.apiToken || !config.tableId) {
+      console.log('NocoDB 未配置，仅保存到本地');
+      return chart;
+    }
 
     try {
       // 确保表结构正确
       await this.ensureTableStructure();
-      await this.syncChart(chart);
+      const updatedChart = await this.syncChart(chart);
+      
+      // 如果 ID 发生了变化，更新本地数据库
+      if (updatedChart.id !== chart.id) {
+        await db.put('charts', updatedChart);
+        // 如果原来有临时ID，删除旧记录
+        if (chart.id && chart.id.startsWith('chart-')) {
+          await db.delete('charts', chart.id);
+        }
+      }
+      
+      console.log('图表已成功保存到 NocoDB');
+      return updatedChart;
     } catch (error) {
-      // 静默处理同步错误，加入离线队列
+      console.error('保存到 NocoDB 失败:', error);
+      // 加入离线队列
       await db.put('syncQueue', { chartId: chart.id, action: 'save' });
+      throw new Error(`保存到 NocoDB 失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }
 
-  private static async syncChart(chart: ChartData): Promise<void> {
-    if (chart.id) {
+  private static async syncChart(chart: ChartData): Promise<ChartData> {
+    // 准备要发送的数据，确保日期格式正确
+    const chartData = {
+      ...chart,
+      createdAt: chart.createdAt instanceof Date ? chart.createdAt.toISOString() : chart.createdAt,
+      updatedAt: chart.updatedAt instanceof Date ? chart.updatedAt.toISOString() : chart.updatedAt
+    };
+
+    if (chart.id && chart.id.startsWith('chart-')) {
+      // 这是一个本地生成的临时ID，需要创建新记录
+      const response = await this.request('', { 
+        method: 'POST',
+        body: JSON.stringify(chartData) 
+      });
+      return { ...chart, id: response.Id || response.id };
+    } else if (chart.id) {
+      // 更新现有记录
       await this.request(`/${chart.id}`, { 
         method: 'PATCH',
-        body: JSON.stringify(chart) 
+        body: JSON.stringify(chartData) 
       });
+      return chart;
     } else {
-      const newChart = await this.request('', { 
+      // 创建新记录
+      const response = await this.request('', { 
         method: 'POST',
-        body: JSON.stringify(chart) 
+        body: JSON.stringify(chartData) 
       });
-      chart.id = newChart.id;
+      return { ...chart, id: response.Id || response.id };
     }
   }
 
@@ -241,7 +279,14 @@ export class StorageService {
         if (item.action === 'save') {
           const chart = await db.get('charts', item.chartId);
           if (chart) {
-            await this.syncChart(chart);
+            const updatedChart = await this.syncChart(chart);
+            // 如果 ID 发生了变化，更新本地数据库
+            if (updatedChart.id !== chart.id) {
+              await db.put('charts', updatedChart);
+              if (chart.id && chart.id.startsWith('chart-')) {
+                await db.delete('charts', chart.id);
+              }
+            }
           }
         } else if (item.action === 'delete') {
           await this.request(`/${item.chartId}`, { method: 'DELETE' });
