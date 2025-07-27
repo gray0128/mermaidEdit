@@ -86,6 +86,14 @@ export class StorageService {
   }
 
   static async saveChart(chart: ChartData): Promise<ChartData> {
+    // 确保chart有id字段，如果没有则生成一个临时ID
+    if (!chart.id) {
+      chart = {
+        ...chart,
+        id: `default-${Date.now()}`
+      };
+    }
+    
     const db = await this.getDB();
     await db.put('charts', chart);
 
