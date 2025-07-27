@@ -197,7 +197,17 @@ export class Preview {
   }
 
   private async renderChart(code: string) {
-    if (!this.previewContainer || !code.trim()) {
+    if (!this.previewContainer) {
+      return
+    }
+
+    // 如果代码为空，显示默认提示
+    if (!code.trim()) {
+      this.previewContainer.innerHTML = `
+        <div class="text-center text-gray-500 py-8">
+          <p>输入Mermaid代码即可看到实时预览</p>
+        </div>
+      `
       return
     }
 

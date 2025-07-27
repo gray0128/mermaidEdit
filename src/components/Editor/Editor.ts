@@ -36,7 +36,7 @@ export class Editor {
             id="ai-prompt" 
             class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm resize-none transition-all duration-200" 
             style="height: 40px; min-height: 40px;"
-            placeholder="用AI生成图表，如：创建一个用户登录流程图"
+            placeholder="用AI生成或修改图表，如：创建一个用户登录流程图 / 添加错误处理分支 / 修改颜色样式"
           ></textarea>
           <button id="ai-generate-btn" class="btn-secondary px-4 py-2 text-sm">
             AI生成
@@ -54,7 +54,7 @@ export class Editor {
 
   private bindEvents() {
     const aiPrompt = this.element.querySelector('#ai-prompt') as HTMLTextAreaElement
-    const aiGenerateBtn = this.element.querySelector('#ai-generate-btn')
+    const aiGenerateBtn = this.element.querySelector('#ai-generate-btn') as HTMLButtonElement
     
     // 防抖定时器
     let debounceTimer: NodeJS.Timeout
@@ -77,8 +77,52 @@ export class Editor {
             document.dispatchEvent(event)
           }
         }, 300)
+        
+        // 更新按钮状态（代码内容变化时）
+        updateButtonState()
       }
     })
+
+    // AI输入框内容变化时更新按钮状态
+    const updateButtonState = () => {
+      const hasContent = aiPrompt?.value.trim().length > 0
+      const hasCode = (this.textarea?.value.trim().length || 0) > 0
+      const state = this.store.getState()
+      
+      if (hasContent && !state.isLoading) {
+        aiGenerateBtn.className = 'btn-primary px-4 py-2 text-sm transition-all duration-200'
+        aiGenerateBtn.disabled = false
+        // 根据是否有现有代码显示不同的按钮文字
+        aiGenerateBtn.innerHTML = hasCode ? 'AI修改' : 'AI生成'
+      } else if (state.isLoading) {
+        aiGenerateBtn.className = 'bg-blue-400 text-white px-4 py-2 text-sm cursor-not-allowed transition-all duration-200'
+        aiGenerateBtn.disabled = true
+        aiGenerateBtn.innerHTML = `
+          <div class="flex items-center space-x-2">
+            <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>${hasCode ? '修改中...' : '生成中...'}</span>
+          </div>
+        `
+      } else {
+        aiGenerateBtn.className = 'btn-secondary px-4 py-2 text-sm transition-all duration-200'
+        aiGenerateBtn.disabled = false
+        aiGenerateBtn.innerHTML = hasCode ? 'AI修改' : 'AI生成'
+      }
+    }
+
+    // 监听输入变化
+    aiPrompt?.addEventListener('input', updateButtonState)
+    
+    // 监听store状态变化
+    this.store.subscribe(() => {
+      updateButtonState()
+    })
+    
+    // 初始化按钮状态
+    updateButtonState()
 
     // AI输入框动态高度调整
     aiPrompt?.addEventListener('focus', () => {
@@ -99,13 +143,37 @@ export class Editor {
         return
       }
 
+      // 获取当前代码区域的内容
+      const currentCode = this.textarea?.value.trim() || ''
+      
       // 点击生成按钮后恢复输入框高度
-       aiPrompt.style.height = '40px'
-       aiPrompt.blur() // 移除焦点
+      aiPrompt.style.height = '40px'
+      aiPrompt.blur() // 移除焦点
 
       document.dispatchEvent(new CustomEvent('generate-with-ai', {
-        detail: { prompt }
+        detail: { 
+          prompt,
+          currentCode // 传递当前代码内容
+        }
       }))
+    })
+
+    // 监听AI生成完成事件
+    document.addEventListener('ai-generation-complete', (e: Event) => {
+      const customEvent = e as CustomEvent
+      const success = customEvent.detail?.success
+      
+      // 显示完成提醒
+      this.showNotification(
+        success ? 'AI生成完成！' : 'AI生成失败，请重试',
+        success ? 'success' : 'error'
+      )
+      
+      // 清空输入框
+      if (success && aiPrompt) {
+        aiPrompt.value = ''
+        updateButtonState()
+      }
     })
 
     // AI提示框回车事件（Ctrl+Enter或Cmd+Enter提交）
@@ -124,5 +192,40 @@ export class Editor {
     }
   }
 
-
+  private showNotification(message: string, type: 'success' | 'error' = 'success') {
+    // 创建通知元素
+    const notification = document.createElement('div')
+    notification.className = `fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full ${
+      type === 'success' 
+        ? 'bg-green-500 text-white' 
+        : 'bg-red-500 text-white'
+    }`
+    notification.innerHTML = `
+      <div class="flex items-center space-x-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          ${type === 'success' 
+            ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>'
+            : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>'
+          }
+        </svg>
+        <span>${message}</span>
+      </div>
+    `
+    
+    // 添加到页面
+    document.body.appendChild(notification)
+    
+    // 动画显示
+    setTimeout(() => {
+      notification.style.transform = 'translateX(0)'
+    }, 100)
+    
+    // 3秒后自动消失
+    setTimeout(() => {
+      notification.style.transform = 'translateX(full)'
+      setTimeout(() => {
+        document.body.removeChild(notification)
+      }, 300)
+    }, 3000)
+  }
 }

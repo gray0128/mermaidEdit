@@ -39,7 +39,7 @@ export class App {
       const defaultChart = {
         id: 'default-' + Date.now(),
         title: '新建图表',
-        mermaidCode: 'graph TD\n    A[开始] --> B[输入Mermaid代码]\n    B --> C[实时预览]\n    C --> D[完成]',
+        mermaidCode: '', // 初始为空，让用户自己输入或使用AI生成
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -116,14 +116,40 @@ export class App {
     document.addEventListener('generate-with-ai', async (e: Event) => {
       const customEvent = e as CustomEvent
       const prompt = customEvent.detail?.prompt
+      const currentCode = customEvent.detail?.currentCode || ''
+      
       if (prompt) {
+        let success = false
         try {
           if (this.store.getState().currentChart?.id) {
             this.store.setLoading(true);
-            const mermaidCode = await this.aiService.generateMermaid(prompt);
+            
+            // 根据是否有现有代码构建不同的prompt
+            let finalPrompt = prompt
+            if (currentCode) {
+              finalPrompt = `请基于以下现有的Mermaid代码进行修改：
+
+\`\`\`mermaid
+${currentCode}
+\`\`\`
+
+用户要求：${prompt}
+
+请返回修改后的完整Mermaid代码。`
+            }
+            
+            const mermaidCode = await this.aiService.generateMermaid(finalPrompt);
             const currentChart = this.store.getState().currentChart;
             if (currentChart && currentChart.id) {
               this.store.updateChart(currentChart.id, { mermaidCode });
+              
+              // 触发实时渲染
+              setTimeout(() => {
+                const event = new CustomEvent('mermaid-update', { detail: { code: mermaidCode } })
+                document.dispatchEvent(event)
+              }, 100)
+              
+              success = true
             } else {
               alert('没有选中的图表，无法更新。');
             }
@@ -131,9 +157,15 @@ export class App {
             alert('请先选择一个图表');
           }
         } catch (error) {
+          console.error('AI生成失败:', error)
           alert(error instanceof Error ? error.message : 'AI生成失败')
         } finally {
           this.store.setLoading(false)
+          
+          // 触发AI生成完成事件
+          document.dispatchEvent(new CustomEvent('ai-generation-complete', {
+            detail: { success }
+          }))
         }
       }
     })
