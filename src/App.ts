@@ -60,10 +60,19 @@ export class App {
       console.warn('加载图表列表失败，将从空列表开始:', error);
     }
     
-    // 同步离线数据
-    await StorageService.syncOfflineQueue();
-    // 定期同步
-    setInterval(() => StorageService.syncOfflineQueue(), 5 * 60 * 1000); // 每5分钟同步一次
+    // 静默同步离线数据，不显示错误
+    try {
+      await StorageService.syncOfflineQueue();
+      // 定期同步
+      setInterval(() => {
+        StorageService.syncOfflineQueue().catch(error => {
+          // 静默处理同步错误，避免控制台噪音
+          console.debug('定期同步失败:', error);
+        });
+      }, 5 * 60 * 1000); // 每5分钟同步一次
+    } catch (error) {
+      console.debug('初始同步失败:', error);
+    }
   }
 
   private setupUI(): void {

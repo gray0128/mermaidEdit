@@ -143,6 +143,9 @@ export class StorageService {
       console.log('表结构检查完成');
     } catch (error) {
       console.error('表结构检查失败:', error);
+      if (error instanceof Error && error.message.includes('404')) {
+        throw new Error(`表ID "${config.tableId}" 不存在，请检查NocoDB配置中的表ID是否正确`);
+      }
       throw new Error(`表结构检查失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }
@@ -156,7 +159,7 @@ export class StorageService {
       await this.ensureTableStructure();
       await this.syncChart(chart);
     } catch (error) {
-      console.error('在线同步失败，已加入离线队列:', error);
+      // 静默处理同步错误，加入离线队列
       await db.put('syncQueue', { chartId: chart.id, action: 'save' });
     }
   }
@@ -182,8 +185,7 @@ export class StorageService {
       const data = await this.request('');
       return data.list || [];
     } catch (error) {
-      console.warn('从NocoDB获取图表失败，使用本地数据:', error);
-      // 降级到本地IndexedDB
+      // 静默处理NocoDB错误，降级到本地IndexedDB
       try {
         const db = await this.getDB();
         const tx = db.transaction('charts', 'readonly');
@@ -205,7 +207,7 @@ export class StorageService {
       const response = await this.request('');
       return response.list || [];
     } catch (error) {
-      console.error('从NocoDB获取图表失败:', error);
+      // 静默处理NocoDB错误
       return [];
     }
   }
@@ -221,7 +223,7 @@ export class StorageService {
     try {
       await this.request(`/${id}`, { method: 'DELETE' });
     } catch (error) {
-      console.error('在线删除失败，已加入离线队列:', error);
+      // 静默处理删除错误，加入离线队列
       await db.put('syncQueue', { chartId: id, action: 'delete' });
     }
   }
@@ -231,10 +233,6 @@ export class StorageService {
     const tx = db.transaction('syncQueue', 'readwrite');
     const store = tx.objectStore('syncQueue');
     let cursor = await store.openCursor();
-
-    if (cursor) {
-      console.log('开始同步离线操作...');
-    }
 
     while (cursor) {
       const item = cursor.value;
@@ -250,7 +248,8 @@ export class StorageService {
         }
         await cursor.delete();
       } catch (error) {
-        console.error(`同步操作失败: key=${String(key)}, item=`, item, 'error=', error);
+        // 静默处理同步错误，避免控制台噪音
+        console.debug(`同步操作失败: key=${String(key)}, item=`, item, 'error=', error);
       }
       cursor = await cursor.continue();
     }
