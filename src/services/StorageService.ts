@@ -129,34 +129,33 @@ export class StorageService {
   }
 
   private static async syncChart(chart: ChartData): Promise<ChartData> {
-    // 准备要发送的数据，确保日期格式正确
-    const chartData = {
-      ...chart,
-      createdAt: chart.createdAt instanceof Date ? chart.createdAt.toISOString() : chart.createdAt,
-      updatedAt: chart.updatedAt instanceof Date ? chart.updatedAt.toISOString() : chart.updatedAt
+    // 准备要发送的数据，排除自动生成的字段
+    const { id, createdAt, updatedAt, ...chartDataForSync } = chart;
+    
+    // 只保留业务数据字段
+    const dataToSend = {
+      ...chartDataForSync
     };
 
     if (chart.id && typeof chart.id === 'string' && (chart.id.startsWith('chart-') || chart.id.startsWith('default-'))) {
-      // 这是一个本地生成的临时ID，需要创建新记录，不发送id字段
-      const { id, ...dataWithoutId } = chartData;
+      // 这是一个本地生成的临时ID，需要创建新记录
       const response = await this.request('', { 
         method: 'POST',
-        body: JSON.stringify(dataWithoutId) 
+        body: JSON.stringify(dataToSend) 
       });
       return { ...chart, id: response.Id || response.id };
     } else if (chart.id) {
       // 更新现有记录
       await this.request(`/${chart.id}`, { 
         method: 'PATCH',
-        body: JSON.stringify(chartData) 
+        body: JSON.stringify(dataToSend) 
       });
       return chart;
     } else {
-      // 创建新记录，不发送id字段
-      const { id, ...dataWithoutId } = chartData;
+      // 创建新记录
       const response = await this.request('', { 
         method: 'POST',
-        body: JSON.stringify(dataWithoutId) 
+        body: JSON.stringify(dataToSend) 
       });
       return { ...chart, id: response.Id || response.id };
     }
