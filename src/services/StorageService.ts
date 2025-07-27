@@ -129,8 +129,8 @@ export class StorageService {
   }
 
   private static async syncChart(chart: ChartData): Promise<ChartData> {
-    // 准备要发送的数据，排除自动生成的字段
-    const { id, createdAt, updatedAt, ...chartDataForSync } = chart;
+    // 准备要发送的数据，排除所有可能的自动生成字段
+    const { id, createdAt, updatedAt, CreatedAt, UpdatedAt, ...chartDataForSync } = chart as any;
     
     // 只保留业务数据字段
     const dataToSend = {
