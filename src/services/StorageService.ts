@@ -139,11 +139,16 @@ export class StorageService {
 
     if (chart.id && typeof chart.id === 'string' && (chart.id.startsWith('chart-') || chart.id.startsWith('default-'))) {
       // 这是一个本地生成的临时ID，需要创建新记录
+      // 为了避免唯一约束冲突，在标题后添加时间戳
+      const uniqueDataToSend = {
+        ...dataToSend,
+        title: `${dataToSend.title} (${new Date().toLocaleString()})`
+      };
       const response = await this.request('', { 
         method: 'POST',
-        body: JSON.stringify(dataToSend) 
+        body: JSON.stringify(uniqueDataToSend) 
       });
-      return { ...chart, id: response.Id || response.id };
+      return { ...chart, id: response.Id || response.id, title: uniqueDataToSend.title };
     } else if (chart.id) {
       // 更新现有记录
       await this.request(`/${chart.id}`, { 
@@ -153,11 +158,16 @@ export class StorageService {
       return chart;
     } else {
       // 创建新记录
+      // 为了避免唯一约束冲突，在标题后添加时间戳
+      const uniqueDataToSend = {
+        ...dataToSend,
+        title: `${dataToSend.title} (${new Date().toLocaleString()})`
+      };
       const response = await this.request('', { 
         method: 'POST',
-        body: JSON.stringify(dataToSend) 
+        body: JSON.stringify(uniqueDataToSend) 
       });
-      return { ...chart, id: response.Id || response.id };
+      return { ...chart, id: response.Id || response.id, title: uniqueDataToSend.title };
     }
   }
 
