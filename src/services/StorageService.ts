@@ -43,7 +43,7 @@ export class StorageService {
     const url = `${config.baseUrl}/api/v2/tables/${config.tableId}/records${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
-      'xc-auth': config.apiToken,
+      'xc-token': config.apiToken,
     };
 
     const response = await fetch(url, { ...options, headers });
@@ -66,7 +66,7 @@ export class StorageService {
     const url = `${config.baseUrl}/api/v2${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
-      'xc-auth': config.apiToken,
+      'xc-token': config.apiToken,
     };
 
     const response = await fetch(url, { ...options, headers });
