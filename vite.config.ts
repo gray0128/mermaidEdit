@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import { resolve } from 'path'
 
 export default defineConfig({
-  base: '/mermaidEdit/', // GitHub Pages 部署路径
+  base: './', // 使用相对路径支持双域名访问
   plugins: [],
   resolve: {
     alias: {
