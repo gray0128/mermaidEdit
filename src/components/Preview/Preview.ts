@@ -80,17 +80,14 @@ export class Preview {
   }
 
   private bindEvents() {
-    // 监听mermaid更新事件
-    document.addEventListener('mermaid-update', (e: Event) => {
-      const customEvent = e as CustomEvent
-      this.renderChart(customEvent.detail.code)
-    })
-
     // 订阅状态变化
     this.store.subscribe(() => {
       const state = this.store.getState()
       if (state.currentChart) {
         this.renderChart(state.currentChart.mermaidCode)
+      } else {
+        // 如果没有当前图表，显示默认提示
+        this.renderChart('')
       }
     })
   }

@@ -280,10 +280,7 @@ export class ChartList {
       const chart = await StorageService.getChart(chartId)
       if (chart) {
         this.store.setCurrentChart(chart)
-        // 触发图表更新事件
-        document.dispatchEvent(new CustomEvent('mermaid-update', {
-          detail: { code: chart.mermaidCode }
-        }))
+        // Preview组件会自动通过store订阅更新预览，无需手动触发事件
       }
     } catch (error) {
       console.error('加载图表失败:', error)
@@ -310,10 +307,7 @@ export class ChartList {
       // 如果删除的是当前图表，清空当前图表
       if (state.currentChart?.id === chartId) {
         this.store.setCurrentChart(null)
-        // 清空编辑器和预览
-        document.dispatchEvent(new CustomEvent('mermaid-update', {
-          detail: { code: '' }
-        }))
+        // Preview组件会自动通过store订阅更新预览，无需手动触发事件
       }
       
       this.showNotification('图表删除成功', 'success')
@@ -335,11 +329,7 @@ export class ChartList {
     
     this.store.addChart(newChart)
     this.store.setCurrentChart(newChart)
-    
-    // 清空编辑器
-    document.dispatchEvent(new CustomEvent('mermaid-update', {
-      detail: { code: '' }
-    }))
+    // Preview组件会自动通过store订阅更新预览，无需手动触发事件
   }
 
   private async handleRefreshCharts(): Promise<void> {
