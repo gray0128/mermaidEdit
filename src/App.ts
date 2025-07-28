@@ -51,14 +51,8 @@ export class App {
       this.store.setCurrentChart(defaultChart);
     }
 
-    // 加载图表列表
-    try {
-      const charts = await StorageService.getAllCharts();
-      console.log(`成功加载 ${charts.length} 个图表`);
-      charts.forEach(chart => this.store.addChart(chart));
-    } catch (error) {
-      console.warn('加载图表列表失败，将从空列表开始:', error);
-    }
+    // 图表列表加载已移至ChartList组件内部，避免重复加载
+    console.log('图表列表将在ChartList组件中加载');
     
     // 静默同步离线数据，不显示错误
     try {
