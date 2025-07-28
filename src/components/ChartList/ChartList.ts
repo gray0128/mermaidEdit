@@ -305,14 +305,22 @@ export class ChartList {
   }
 
   private async handleSelectChart(chartId: string): Promise<void> {
+    console.log('ChartList: 开始处理图表选择，ID:', chartId)
     try {
       const chart = await StorageService.getChart(chartId)
+      console.log('ChartList: 获取到的图表数据:', chart)
+      
       if (chart) {
+        console.log('ChartList: 设置当前图表到store')
         this.store.setCurrentChart(chart)
+        console.log('ChartList: 已设置当前图表，Preview组件应该会自动更新')
         // Preview组件会自动通过store订阅更新预览，无需手动触发事件
+      } else {
+        console.error('ChartList: 获取到的图表数据为空')
+        alert('无法加载图表数据')
       }
     } catch (error) {
-      console.error('加载图表失败:', error)
+      console.error('ChartList: 加载图表失败:', error)
       alert('加载图表失败: ' + (error instanceof Error ? error.message : '未知错误'))
     }
   }

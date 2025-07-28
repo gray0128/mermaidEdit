@@ -83,9 +83,13 @@ export class Preview {
     // 订阅状态变化
     this.store.subscribe(() => {
       const state = this.store.getState()
+      console.log('Preview: Store状态变化，当前图表:', state.currentChart)
+      
       if (state.currentChart) {
+        console.log('Preview: 渲染图表，代码:', state.currentChart.mermaidCode)
         this.renderChart(state.currentChart.mermaidCode)
       } else {
+        console.log('Preview: 没有当前图表，显示默认提示')
         // 如果没有当前图表，显示默认提示
         this.renderChart('')
       }

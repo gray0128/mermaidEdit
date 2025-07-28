@@ -229,18 +229,32 @@ export class StorageService {
   }
 
   static async getChart(id: string): Promise<ChartData | null> {
+    console.log('正在获取图表，ID:', id);
+    
     // 如果是本地临时ID，直接从本地数据库获取
     if (typeof id === 'string' && (id.startsWith('chart-') || id.startsWith('default-'))) {
-      const db = await this.getDB();
-      return await db.get('charts', id) || null;
+      console.log('使用本地ID，从本地数据库获取');
+      try {
+        const db = await this.getDB();
+        const chart = await db.get('charts', id);
+        console.log('从本地获取到图表:', chart);
+        return chart || null;
+      } catch (error) {
+        console.error('从本地获取图表失败:', error);
+        return null;
+      }
     }
     
     try {
+      console.log('尝试从NocoDB获取图表');
       const chart = await this.request(`/${id}`);
+      console.log('从NocoDB获取到原始图表数据:', chart);
       
       // 处理NocoDB返回的日期字段，确保格式正确
       if (chart) {
-        return this.normalizeChartData(chart);
+        const normalizedChart = this.normalizeChartData(chart);
+        console.log('规范化后的图表数据:', normalizedChart);
+        return normalizedChart;
       }
       
       return chart;
@@ -249,7 +263,9 @@ export class StorageService {
       // 如果从 NocoDB 获取失败，尝试从本地获取
       try {
         const db = await this.getDB();
-        return await db.get('charts', id) || null;
+        const localChart = await db.get('charts', id);
+        console.log('从本地获取到图表:', localChart);
+        return localChart || null;
       } catch (localError) {
         console.error('从本地获取图表也失败:', localError);
         return null;
@@ -261,30 +277,36 @@ export class StorageService {
     // 确保日期字段格式正确
     const normalizedChart = { ...chart };
     
-    // 处理createdAt字段
-    if (chart.createdAt) {
-      if (typeof chart.createdAt === 'string') {
-        normalizedChart.createdAt = new Date(chart.createdAt);
-      } else if (chart.createdAt instanceof Date) {
+    // 处理createdAt字段 - 支持多种字段名
+    let createdAt = chart.createdAt || chart.CreatedAt || chart.created_at;
+    if (createdAt) {
+      if (typeof createdAt === 'string') {
+        normalizedChart.createdAt = new Date(createdAt);
+      } else if (createdAt instanceof Date) {
         // 已经是Date对象，保持不变
+        normalizedChart.createdAt = createdAt;
       } else {
         normalizedChart.createdAt = new Date();
       }
     } else {
+      // 如果没有创建时间，使用当前时间但标记为未知
       normalizedChart.createdAt = new Date();
     }
     
-    // 处理updatedAt字段
-    if (chart.updatedAt) {
-      if (typeof chart.updatedAt === 'string') {
-        normalizedChart.updatedAt = new Date(chart.updatedAt);
-      } else if (chart.updatedAt instanceof Date) {
-        // 已经是Date对象，保持不变
+    // 处理updatedAt字段 - 支持多种字段名，如果为空则使用createdAt
+    let updatedAt = chart.updatedAt || chart.UpdatedAt || chart.updated_at;
+    if (updatedAt) {
+      if (typeof updatedAt === 'string') {
+        normalizedChart.updatedAt = new Date(updatedAt);
+      } else if (updatedAt instanceof Date) {
+        normalizedChart.updatedAt = updatedAt;
       } else {
-        normalizedChart.updatedAt = new Date();
+        // 如果updatedAt无效，使用createdAt
+        normalizedChart.updatedAt = normalizedChart.createdAt;
       }
     } else {
-      normalizedChart.updatedAt = new Date();
+      // 如果没有更新时间，使用创建时间
+      normalizedChart.updatedAt = normalizedChart.createdAt;
     }
     
     return normalizedChart as ChartData;
