@@ -161,8 +161,8 @@ export class ChartList {
   }
 
   private renderChartItem(chart: ChartData, isActive: boolean): string {
-    const createdDate = this.formatDateTime(chart.createdAt instanceof Date ? chart.createdAt.toISOString() : chart.createdAt)
-    const updatedDate = this.formatDateTime(chart.updatedAt instanceof Date ? chart.updatedAt.toISOString() : chart.updatedAt)
+    const createdDate = this.formatDateTime(chart.createdAt)
+    const updatedDate = this.formatDateTime(chart.updatedAt)
     const isUpdated = chart.createdAt !== chart.updatedAt
 
     return `
@@ -201,8 +201,37 @@ export class ChartList {
     `
   }
 
-  private formatDateTime(dateString: string): string {
-    const date = new Date(dateString)
+  private formatDateTime(dateInput: string | Date): string {
+    let date: Date
+    
+    if (dateInput instanceof Date) {
+      date = dateInput
+    } else {
+      // 处理字符串格式的日期
+      if (!dateInput || dateInput === 'Invalid Date') {
+        return '未知时间'
+      }
+      
+      // 尝试解析不同的日期格式
+      date = new Date(dateInput)
+      
+      // 如果解析失败，尝试常见格式
+      if (isNaN(date.getTime())) {
+        // 尝试ISO格式
+        const isoMatch = dateInput.match(/(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})/)
+        if (isoMatch) {
+          date = new Date(`${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}T${isoMatch[4]}:${isoMatch[5]}:${isoMatch[6]}`)
+        } else {
+          return '未知时间'
+        }
+      }
+    }
+    
+    // 再次检查日期是否有效
+    if (isNaN(date.getTime())) {
+      return '未知时间'
+    }
+    
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')

@@ -218,7 +218,10 @@ export class StorageService {
       // 确保表结构正确
       await this.ensureTableStructure();
       const response = await this.request('');
-      return response.list || [];
+      const charts = response.list || [];
+      
+      // 规范化所有图表的日期字段
+      return charts.map((chart: any) => this.normalizeChartData(chart));
     } catch (error) {
       // 静默处理NocoDB错误
       return [];
@@ -233,12 +236,58 @@ export class StorageService {
     }
     
     try {
-      return await this.request(`/${id}`);
+      const chart = await this.request(`/${id}`);
+      
+      // 处理NocoDB返回的日期字段，确保格式正确
+      if (chart) {
+        return this.normalizeChartData(chart);
+      }
+      
+      return chart;
     } catch (error) {
+      console.warn('从NocoDB获取图表失败，尝试从本地获取:', error);
       // 如果从 NocoDB 获取失败，尝试从本地获取
-      const db = await this.getDB();
-      return await db.get('charts', id) || null;
+      try {
+        const db = await this.getDB();
+        return await db.get('charts', id) || null;
+      } catch (localError) {
+        console.error('从本地获取图表也失败:', localError);
+        return null;
+      }
     }
+  }
+
+  private static normalizeChartData(chart: any): ChartData {
+    // 确保日期字段格式正确
+    const normalizedChart = { ...chart };
+    
+    // 处理createdAt字段
+    if (chart.createdAt) {
+      if (typeof chart.createdAt === 'string') {
+        normalizedChart.createdAt = new Date(chart.createdAt);
+      } else if (chart.createdAt instanceof Date) {
+        // 已经是Date对象，保持不变
+      } else {
+        normalizedChart.createdAt = new Date();
+      }
+    } else {
+      normalizedChart.createdAt = new Date();
+    }
+    
+    // 处理updatedAt字段
+    if (chart.updatedAt) {
+      if (typeof chart.updatedAt === 'string') {
+        normalizedChart.updatedAt = new Date(chart.updatedAt);
+      } else if (chart.updatedAt instanceof Date) {
+        // 已经是Date对象，保持不变
+      } else {
+        normalizedChart.updatedAt = new Date();
+      }
+    } else {
+      normalizedChart.updatedAt = new Date();
+    }
+    
+    return normalizedChart as ChartData;
   }
 
   static async deleteChart(id: string): Promise<void> {
