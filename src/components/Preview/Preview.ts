@@ -29,6 +29,9 @@ export class Preview {
     this.render()
     this.bindEvents()
     
+    // 强制初始化mermaid，确保首次粘贴能正常渲染
+    this.initializeMermaid()
+    
     // 初始渲染当前图表
     const state = this.store.getState()
     if (state.currentChart && state.currentChart.mermaidCode.trim()) {
@@ -199,6 +202,18 @@ export class Preview {
   private updateTransform() {
     if (this.previewContainer) {
       this.previewContainer.style.transform = `translate(${this.translateX}px, ${this.translateY}px) scale(${this.currentScale})`
+    }
+  }
+
+  private async initializeMermaid() {
+    // 强制初始化mermaid，确保首次粘贴能正常渲染
+    try {
+      // 使用一个简单的图表来初始化mermaid
+      const initCode = 'graph TD\n    A[开始] --> B[结束]'
+      await mermaid.render('mermaid-init', initCode)
+      console.log('Mermaid 初始化成功')
+    } catch (error) {
+      console.warn('Mermaid 初始化失败:', error)
     }
   }
 

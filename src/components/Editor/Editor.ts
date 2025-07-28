@@ -71,11 +71,9 @@ export class Editor {
         clearTimeout(debounceTimer)
         debounceTimer = setTimeout(() => {
           const code = this.textarea!.value.trim()
-          if (code) {
-            // 触发预览更新
-            const event = new CustomEvent('mermaid-update', { detail: { code } })
-            document.dispatchEvent(event)
-          }
+          // 即使代码为空也要触发预览更新，确保清空时显示提示
+          const event = new CustomEvent('mermaid-update', { detail: { code } })
+          document.dispatchEvent(event)
         }, 300)
         
         // 更新按钮状态（代码内容变化时）
@@ -205,6 +203,16 @@ export class Editor {
         e.preventDefault()
         ;(aiGenerateBtn as HTMLButtonElement).click()
       }
+    })
+
+    // 粘贴事件处理，确保粘贴后能立即渲染
+    this.textarea?.addEventListener('paste', () => {
+      // 使用 setTimeout 确保在粘贴内容已经插入到 textarea 后再处理
+      setTimeout(() => {
+        const code = this.textarea!.value.trim()
+        const event = new CustomEvent('mermaid-update', { detail: { code } })
+        document.dispatchEvent(event)
+      }, 10)
     })
   }
 
