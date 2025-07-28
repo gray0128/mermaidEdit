@@ -227,6 +227,8 @@ ${currentCode}
           document.dispatchEvent(event)
         }, 100)
         
+        // AI生成的内容会自动保存到本地，无需手动保存
+        
         success = true
         console.log('AI生成完成')
         

@@ -1,9 +1,13 @@
 import { AppStore } from '@/store/AppStore'
+import { StorageService } from '@/services/StorageService'
 
 export class Editor {
   private store: AppStore
   private element: HTMLElement
   private textarea: HTMLTextAreaElement | null = null
+  private cloudSyncTimer: NodeJS.Timeout | null = null
+  private saveStatusElement: HTMLElement | null = null
+  private lastSavedCode: string = ''
 
   constructor(store: AppStore) {
     this.store = store
@@ -20,7 +24,18 @@ export class Editor {
       <div class="p-4 border-b border-gray-200">
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-semibold text-gray-900">Mermaid代码</h2>
-          <span class="text-sm text-gray-500">实时预览，输入即可看到效果</span>
+          <div class="flex items-center space-x-2">
+            <span id="save-status" class="text-sm text-gray-500">
+              <span class="inline-flex items-center">
+                <svg class="w-4 h-4 mr-1 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                已保存
+              </span>
+            </span>
+            <span class="text-sm text-gray-400">|</span>
+            <span class="text-sm text-gray-500">实时预览，输入即可看到效果</span>
+          </div>
         </div>
       </div>
       <div class="flex-1 p-4">
@@ -55,6 +70,7 @@ export class Editor {
   private bindEvents() {
     const aiPrompt = this.element.querySelector('#ai-prompt') as HTMLTextAreaElement
     const aiGenerateBtn = this.element.querySelector('#ai-generate-btn') as HTMLButtonElement
+    this.saveStatusElement = this.element.querySelector('#save-status')
     
     // 防抖定时器
     let debounceTimer: NodeJS.Timeout
@@ -62,15 +78,20 @@ export class Editor {
     this.textarea?.addEventListener('input', () => {
       const state = this.store.getState()
       if (state.currentChart) {
-        // 更新状态（立即更新，用于保存）
+        const currentCode = this.textarea!.value
+        
+        // 更新状态（立即更新）
         this.store.updateChart(state.currentChart.id, {
-          mermaidCode: this.textarea!.value
+          mermaidCode: currentCode
         })
+        
+        // 实时保存到本地（无延迟）
+        this.saveToLocal(state.currentChart.id, currentCode)
         
         // 防抖渲染（300ms 延迟）
         clearTimeout(debounceTimer)
         debounceTimer = setTimeout(() => {
-          const code = this.textarea!.value.trim()
+          const code = currentCode.trim()
           // 即使代码为空也要触发预览更新，确保清空时显示提示
           const event = new CustomEvent('mermaid-update', { detail: { code } })
           document.dispatchEvent(event)
@@ -214,18 +235,126 @@ export class Editor {
         document.dispatchEvent(event)
       }, 10)
     })
+
+    // 定时云端同步（30秒延迟）
+    this.textarea?.addEventListener('input', () => {
+      this.scheduleCloudSync()
+    })
   }
 
   private updateFromStore() {
     const state = this.store.getState()
     if (this.textarea && state.currentChart) {
       this.textarea.value = state.currentChart.mermaidCode
+      this.lastSavedCode = state.currentChart.mermaidCode
       
       // 触发预览更新
       const code = state.currentChart.mermaidCode.trim()
       const event = new CustomEvent('mermaid-update', { detail: { code } })
       document.dispatchEvent(event)
     }
+  }
+
+  private async saveToLocal(chartId: string, code: string): Promise<void> {
+    try {
+      const state = this.store.getState()
+      const currentChart = state.charts.find(c => c.id === chartId)
+      if (!currentChart) return
+
+      // 更新保存状态为"保存中..."
+      this.updateSaveStatus('saving', '保存中...')
+
+      const updatedChart = {
+        ...currentChart,
+        mermaidCode: code,
+        updatedAt: new Date()
+      }
+
+      // 保存到本地
+      await StorageService.saveChartToLocal(updatedChart)
+      this.lastSavedCode = code
+      
+      // 更新保存状态为"已保存"
+      this.updateSaveStatus('saved', '已保存')
+      
+      console.log('图表已保存到本地')
+    } catch (error) {
+      console.error('保存到本地失败:', error)
+      this.updateSaveStatus('error', '保存失败')
+    }
+  }
+
+  private scheduleCloudSync(): void {
+    // 清除之前的定时器
+    if (this.cloudSyncTimer) {
+      clearTimeout(this.cloudSyncTimer)
+    }
+
+    // 30秒后执行云端同步
+    this.cloudSyncTimer = setTimeout(async () => {
+      await this.syncToCloud()
+    }, 30000)
+  }
+
+  private async syncToCloud(): Promise<void> {
+    const state = this.store.getState()
+    const currentChart = state.currentChart
+    if (!currentChart || currentChart.mermaidCode === this.lastSavedCode) {
+      return // 没有更改，无需同步
+    }
+
+    try {
+      this.updateSaveStatus('syncing', '同步到云端...')
+
+      const updatedChart = {
+        ...currentChart,
+        mermaidCode: currentChart.mermaidCode,
+        updatedAt: new Date()
+      }
+
+      // 保存到云端
+      await StorageService.saveChart(updatedChart)
+      this.lastSavedCode = currentChart.mermaidCode
+      
+      this.updateSaveStatus('saved', '已保存到云端')
+      console.log('图表已同步到云端')
+    } catch (error) {
+      console.error('同步到云端失败:', error)
+      this.updateSaveStatus('error', '云端同步失败')
+    }
+  }
+
+  private updateSaveStatus(status: 'saved' | 'saving' | 'syncing' | 'error', text: string): void {
+    if (!this.saveStatusElement) return
+
+    const statusConfig = {
+      saved: {
+        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>',
+        color: 'text-green-500'
+      },
+      saving: {
+        icon: '<svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>',
+        color: 'text-blue-500'
+      },
+      syncing: {
+        icon: '<svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>',
+        color: 'text-purple-500'
+      },
+      error: {
+        icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>',
+        color: 'text-red-500'
+      }
+    }
+
+    const config = statusConfig[status]
+    this.saveStatusElement.innerHTML = `
+      <span class="inline-flex items-center">
+        <svg class="w-4 h-4 mr-1 ${config.color}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          ${config.icon}
+        </svg>
+        ${text}
+      </span>
+    `
   }
 
   private showNotification(message: string, type: 'success' | 'error' = 'success') {

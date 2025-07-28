@@ -94,8 +94,8 @@ export class StorageService {
       };
     }
     
-    const db = await this.getDB();
-    await db.put('charts', chart);
+    // 先保存到本地
+    await this.saveChartToLocal(chart);
 
     // 检查是否配置了 NocoDB
     const config = this.getNocoDBConfig();
@@ -110,6 +110,7 @@ export class StorageService {
       const updatedChart = await this.syncChart(chart);
       
       // 如果 ID 发生了变化，更新本地数据库
+      const db = await this.getDB();
       if (updatedChart.id !== chart.id) {
         await db.put('charts', updatedChart);
         // 如果原来有临时ID，删除旧记录
@@ -123,9 +124,25 @@ export class StorageService {
     } catch (error) {
       console.error('保存到 NocoDB 失败:', error);
       // 加入离线队列
+      const db = await this.getDB();
       await db.put('syncQueue', { chartId: chart.id, action: 'save' });
       throw new Error(`保存到 NocoDB 失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
+  }
+
+  static async saveChartToLocal(chart: ChartData): Promise<ChartData> {
+    // 确保chart有id字段，如果没有则生成一个临时ID
+    if (!chart.id) {
+      chart = {
+        ...chart,
+        id: `default-${Date.now()}`
+      };
+    }
+    
+    const db = await this.getDB();
+    await db.put('charts', chart);
+    
+    return chart;
   }
 
   private static async syncChart(chart: ChartData): Promise<ChartData> {
