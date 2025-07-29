@@ -282,11 +282,17 @@ export class Editor {
   private updateFromStore() {
     const state = this.store.getState()
     if (this.textarea && state.currentChart) {
-      this.textarea.value = state.currentChart.mermaidCode
-      this.lastSavedCode = state.currentChart.mermaidCode
+      const newCode = state.currentChart.mermaidCode
+      
+      // 只有当代码真的发生变化时才更新textarea和lastSavedCode
+      if (this.textarea.value !== newCode) {
+        this.textarea.value = newCode
+        this.lastSavedCode = newCode
+        console.log('Editor: 从store更新代码，重置lastSavedCode')
+      }
       
       // 触发预览更新
-      const code = state.currentChart.mermaidCode.trim()
+      const code = newCode.trim()
       const event = new CustomEvent('mermaid-update', { detail: { code } })
       document.dispatchEvent(event)
     }
@@ -316,15 +322,17 @@ export class Editor {
       console.log('保存到本地，图表ID:', chartId, '代码长度:', code.length)
       console.log('保存前的图表数据:', currentChart)
       console.log('保存后的图表数据:', updatedChart)
+      console.log('保存前lastSavedCode长度:', this.lastSavedCode?.length || 0)
 
       // 保存到本地
       await StorageService.saveChartToLocal(updatedChart)
       this.lastSavedCode = code
       
+      console.log('保存后lastSavedCode长度:', this.lastSavedCode?.length || 0)
+      console.log('图表已保存到本地')
+      
       // 更新保存状态为"已保存"
       this.updateSaveStatus('saved', '已保存')
-      
-      console.log('图表已保存到本地')
     } catch (error) {
       console.error('保存到本地失败:', error)
       this.updateSaveStatus('error', '保存失败')
@@ -355,7 +363,18 @@ export class Editor {
   private async syncToCloud(): Promise<void> {
     const state = this.store.getState()
     const currentChart = state.currentChart
-    if (!currentChart || currentChart.mermaidCode === this.lastSavedCode) {
+    const currentCode = currentChart?.mermaidCode || ''
+    const lastSavedCode = this.lastSavedCode || ''
+    
+    console.log('同步检查:', {
+      hasCurrentChart: !!currentChart,
+      currentCodeLength: currentCode.length,
+      lastSavedCodeLength: lastSavedCode.length,
+      codesAreEqual: currentCode === lastSavedCode,
+      currentChartId: currentChart?.id
+    })
+    
+    if (!currentChart || currentCode === lastSavedCode) {
       console.log('没有更改，跳过云端同步')
       return // 没有更改，无需同步
     }
@@ -366,7 +385,7 @@ export class Editor {
 
       const updatedChart = {
         ...currentChart,
-        mermaidCode: currentChart.mermaidCode,
+        mermaidCode: currentCode,
         updatedAt: new Date()
       }
 
@@ -377,7 +396,7 @@ export class Editor {
 
       // 保存到云端
       await StorageService.saveChart(updatedChart)
-      this.lastSavedCode = currentChart.mermaidCode
+      this.lastSavedCode = currentCode
       
       this.updateSaveStatus('saved', '已保存到云端')
       console.log('图表已同步到云端')
