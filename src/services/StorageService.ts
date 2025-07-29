@@ -277,6 +277,9 @@ export class StorageService {
     // 确保日期字段格式正确
     const normalizedChart = { ...chart };
     
+    // 处理ID字段 - 支持多种字段名
+    normalizedChart.id = chart.id || chart.Id || chart.ID;
+    
     // 处理createdAt字段 - 支持多种字段名
     let createdAt = chart.createdAt || chart.CreatedAt || chart.created_at;
     if (createdAt) {
@@ -309,6 +312,7 @@ export class StorageService {
       normalizedChart.updatedAt = normalizedChart.createdAt;
     }
     
+    console.log('规范化后的图表数据:', normalizedChart);
     return normalizedChart as ChartData;
   }
 
