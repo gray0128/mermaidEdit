@@ -285,8 +285,11 @@ export class StorageService {
     // 确保日期字段格式正确
     const normalizedChart = { ...chart };
     
-    // 处理ID字段 - 支持多种字段名
+    // 处理ID字段 - 支持多种字段名，确保只有一个id字段
     normalizedChart.id = chart.id || chart.Id || chart.ID;
+    // 删除其他ID字段，避免冲突
+    delete normalizedChart.Id;
+    delete normalizedChart.ID;
     
     // 处理createdAt字段 - 支持多种字段名
     let createdAt = chart.createdAt || chart.CreatedAt || chart.created_at;
@@ -319,6 +322,12 @@ export class StorageService {
       // 如果没有更新时间，使用创建时间
       normalizedChart.updatedAt = normalizedChart.createdAt;
     }
+    
+    // 删除其他可能的日期字段，避免冲突
+    delete normalizedChart.CreatedAt;
+    delete normalizedChart.UpdatedAt;
+    delete normalizedChart.created_at;
+    delete normalizedChart.updated_at;
     
     console.log('规范化后的图表数据:', normalizedChart);
     return normalizedChart as ChartData;

@@ -320,7 +320,13 @@ export class ChartList {
         console.log('ChartList: 设置当前图表到store')
         this.store.setCurrentChart(chart)
         console.log('ChartList: 已设置当前图表，Preview组件应该会自动更新')
-        // Preview组件会自动通过store订阅更新预览，无需手动触发事件
+        
+        // 确保图表列表中的当前图表也被更新
+        this.store.updateChart(chartId, {
+          mermaidCode: chart.mermaidCode,
+          updatedAt: chart.updatedAt
+        })
+        console.log('ChartList: 已更新图表列表中的数据')
       } else {
         console.error('ChartList: 获取到的图表数据为空')
         alert('无法加载图表数据')

@@ -82,7 +82,8 @@ export class Editor {
         
         // 更新状态（立即更新）
         this.store.updateChart(state.currentChart.id, {
-          mermaidCode: currentCode
+          mermaidCode: currentCode,
+          updatedAt: new Date()
         })
         
         // 实时保存到本地（无延迟）
@@ -267,9 +268,12 @@ export class Editor {
       // 更新保存状态为"保存中..."
       this.updateSaveStatus('saving', '保存中...')
 
+      // 创建规范化后的图表对象
       const updatedChart = {
-        ...currentChart,
+        id: chartId,
+        title: currentChart.title,
         mermaidCode: code,
+        createdAt: currentChart.createdAt,
         updatedAt: new Date()
       }
 
