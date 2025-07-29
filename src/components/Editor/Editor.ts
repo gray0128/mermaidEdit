@@ -34,6 +34,13 @@ export class Editor {
               </span>
             </span>
             <span class="text-sm text-gray-400">|</span>
+            <button id="sync-cloud-btn" class="text-sm text-blue-600 hover:text-blue-800 transition-colors" title="立即同步到云端">
+              <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+              </svg>
+              同步云端
+            </button>
+            <span class="text-sm text-gray-400">|</span>
             <span class="text-sm text-gray-500">实时预览，输入即可看到效果</span>
           </div>
         </div>
@@ -70,6 +77,7 @@ export class Editor {
   private bindEvents() {
     const aiPrompt = this.element.querySelector('#ai-prompt') as HTMLTextAreaElement
     const aiGenerateBtn = this.element.querySelector('#ai-generate-btn') as HTMLButtonElement
+    const syncCloudBtn = this.element.querySelector('#sync-cloud-btn') as HTMLButtonElement
     this.saveStatusElement = this.element.querySelector('#save-status')
     
     // 防抖定时器
@@ -241,6 +249,34 @@ export class Editor {
     this.textarea?.addEventListener('input', () => {
       this.scheduleCloudSync()
     })
+
+    // 立即同步到云端按钮
+    syncCloudBtn?.addEventListener('click', async () => {
+      if (syncCloudBtn.disabled) {
+        return
+      }
+      
+      syncCloudBtn.disabled = true
+      syncCloudBtn.innerHTML = `
+        <svg class="w-4 h-4 inline mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        同步中...
+      `
+      
+      try {
+        await this.immediateSyncToCloud()
+      } finally {
+        syncCloudBtn.disabled = false
+        syncCloudBtn.innerHTML = `
+          <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+          </svg>
+          同步云端
+        `
+      }
+    })
   }
 
   private updateFromStore() {
@@ -307,21 +343,37 @@ export class Editor {
     }, 30000)
   }
 
+  // 立即同步到云端（用于测试）
+  private async immediateSyncToCloud(): Promise<void> {
+    if (this.cloudSyncTimer) {
+      clearTimeout(this.cloudSyncTimer)
+      this.cloudSyncTimer = null
+    }
+    await this.syncToCloud()
+  }
+
   private async syncToCloud(): Promise<void> {
     const state = this.store.getState()
     const currentChart = state.currentChart
     if (!currentChart || currentChart.mermaidCode === this.lastSavedCode) {
+      console.log('没有更改，跳过云端同步')
       return // 没有更改，无需同步
     }
 
     try {
       this.updateSaveStatus('syncing', '同步到云端...')
+      console.log('开始同步到云端...')
 
       const updatedChart = {
         ...currentChart,
         mermaidCode: currentChart.mermaidCode,
         updatedAt: new Date()
       }
+
+      console.log('NocoDB 配置检查:', {
+        hasConfig: !!StorageService.getNocoDBConfig(),
+        config: StorageService.getNocoDBConfig()
+      })
 
       // 保存到云端
       await StorageService.saveChart(updatedChart)
