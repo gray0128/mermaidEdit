@@ -89,12 +89,14 @@ export class Editor {
         const currentCode = this.textarea!.value
         
         // 更新状态（立即更新）
+        console.log('Editor: 更新store状态，代码长度:', currentCode.length)
         this.store.updateChart(state.currentChart.id, {
           mermaidCode: currentCode,
           updatedAt: new Date()
         })
         
         // 实时保存到本地（无延迟）
+        console.log('Editor: 准备保存到本地，当前lastSavedCode长度:', this.lastSavedCode?.length || 0)
         this.saveToLocal(state.currentChart.id, currentCode)
         
         // 防抖渲染（300ms 延迟）
@@ -251,10 +253,13 @@ export class Editor {
     })
 
     // 立即同步到云端按钮
-    syncCloudBtn?.addEventListener('click', async () => {
+    syncCloudBtn?.addEventListener('click', async (e) => {
       if (syncCloudBtn.disabled) {
         return
       }
+      
+      const isForceSync = e.shiftKey // 按住Shift键点击进行强制同步
+      const actionText = isForceSync ? '强制同步' : '同步'
       
       syncCloudBtn.disabled = true
       syncCloudBtn.innerHTML = `
@@ -262,11 +267,17 @@ export class Editor {
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        同步中...
+        ${actionText}中...
       `
       
       try {
-        await this.immediateSyncToCloud()
+        if (isForceSync) {
+          console.log('用户触发强制同步')
+          await this.forceSyncToCloud()
+        } else {
+          console.log('用户触发普通同步')
+          await this.immediateSyncToCloud()
+        }
       } finally {
         syncCloudBtn.disabled = false
         syncCloudBtn.innerHTML = `
@@ -283,12 +294,23 @@ export class Editor {
     const state = this.store.getState()
     if (this.textarea && state.currentChart) {
       const newCode = state.currentChart.mermaidCode
+      const oldCode = this.textarea.value
+      
+      console.log('Editor: updateFromStore被调用', {
+        chartId: state.currentChart.id,
+        oldCodeLength: oldCode.length,
+        newCodeLength: newCode.length,
+        codesAreEqual: oldCode === newCode,
+        currentLastSavedCodeLength: this.lastSavedCode?.length || 0
+      })
       
       // 只有当代码真的发生变化时才更新textarea和lastSavedCode
-      if (this.textarea.value !== newCode) {
+      if (oldCode !== newCode) {
         this.textarea.value = newCode
         this.lastSavedCode = newCode
-        console.log('Editor: 从store更新代码，重置lastSavedCode')
+        console.log('Editor: 从store更新代码，重置lastSavedCode，新长度:', newCode.length)
+      } else {
+        console.log('Editor: 代码未变化，保持原状')
       }
       
       // 触发预览更新
@@ -358,6 +380,47 @@ export class Editor {
       this.cloudSyncTimer = null
     }
     await this.syncToCloud()
+  }
+
+  // 强制同步到云端（绕过检查，用于调试）
+  private async forceSyncToCloud(): Promise<void> {
+    if (this.cloudSyncTimer) {
+      clearTimeout(this.cloudSyncTimer)
+      this.cloudSyncTimer = null
+    }
+    
+    const state = this.store.getState()
+    const currentChart = state.currentChart
+    if (!currentChart) {
+      console.log('没有当前图表，无法强制同步')
+      return
+    }
+
+    try {
+      this.updateSaveStatus('syncing', '强制同步到云端...')
+      console.log('开始强制同步到云端...')
+
+      const updatedChart = {
+        ...currentChart,
+        mermaidCode: currentChart.mermaidCode,
+        updatedAt: new Date()
+      }
+
+      console.log('NocoDB 配置检查:', {
+        hasConfig: !!StorageService.getNocoDBConfig(),
+        config: StorageService.getNocoDBConfig()
+      })
+
+      // 保存到云端
+      await StorageService.saveChart(updatedChart)
+      this.lastSavedCode = currentChart.mermaidCode
+      
+      this.updateSaveStatus('saved', '已强制同步到云端')
+      console.log('图表已强制同步到云端')
+    } catch (error) {
+      console.error('强制同步到云端失败:', error)
+      this.updateSaveStatus('error', '强制同步失败')
+    }
   }
 
   private async syncToCloud(): Promise<void> {
