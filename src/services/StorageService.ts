@@ -139,8 +139,14 @@ export class StorageService {
       };
     }
     
+    console.log('StorageService: 保存图表到本地，ID:', chart.id, '代码长度:', chart.mermaidCode?.length || 0)
+    
     const db = await this.getDB();
     await db.put('charts', chart);
+    
+    // 验证保存是否成功
+    const savedChart = await db.get('charts', chart.id);
+    console.log('StorageService: 验证保存结果，代码长度:', savedChart?.mermaidCode?.length || 0)
     
     return chart;
   }
@@ -233,11 +239,12 @@ export class StorageService {
     
     // 如果是本地临时ID，直接从本地数据库获取
     if (typeof id === 'string' && (id.startsWith('chart-') || id.startsWith('default-'))) {
-      console.log('使用本地ID，从本地数据库获取');
+      console.log('使用本地ID，从本地数据库获取，ID:', id);
       try {
         const db = await this.getDB();
         const chart = await db.get('charts', id);
-        console.log('从本地获取到图表:', chart);
+        console.log('从本地获取到图表，代码长度:', chart?.mermaidCode?.length || 0);
+        console.log('完整的图表数据:', chart);
         return chart || null;
       } catch (error) {
         console.error('从本地获取图表失败:', error);
@@ -264,7 +271,8 @@ export class StorageService {
       try {
         const db = await this.getDB();
         const localChart = await db.get('charts', id);
-        console.log('从本地获取到图表:', localChart);
+        console.log('从本地获取到图表，代码长度:', localChart?.mermaidCode?.length || 0);
+        console.log('完整的本地图表数据:', localChart);
         return localChart || null;
       } catch (localError) {
         console.error('从本地获取图表也失败:', localError);

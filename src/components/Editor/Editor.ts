@@ -258,8 +258,11 @@ export class Editor {
   private async saveToLocal(chartId: string, code: string): Promise<void> {
     try {
       const state = this.store.getState()
-      const currentChart = state.charts.find(c => c.id === chartId)
-      if (!currentChart) return
+      const currentChart = state.currentChart
+      if (!currentChart || currentChart.id !== chartId) {
+        console.error('当前图表不匹配或不存在，跳过保存')
+        return
+      }
 
       // 更新保存状态为"保存中..."
       this.updateSaveStatus('saving', '保存中...')
@@ -269,6 +272,10 @@ export class Editor {
         mermaidCode: code,
         updatedAt: new Date()
       }
+
+      console.log('保存到本地，图表ID:', chartId, '代码长度:', code.length)
+      console.log('保存前的图表数据:', currentChart)
+      console.log('保存后的图表数据:', updatedChart)
 
       // 保存到本地
       await StorageService.saveChartToLocal(updatedChart)
