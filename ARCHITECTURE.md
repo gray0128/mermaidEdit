@@ -3,6 +3,7 @@
 ## 1. 总体架构
 
 ### 1.1 架构概览
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        前端应用层                              │
@@ -26,6 +27,7 @@
 ```
 
 ### 1.2 技术架构特点
+
 - **纯前端架构**：无后端服务，所有逻辑在浏览器端执行
 - **模块化设计**：清晰的模块边界和职责分离
 - **事件驱动**：基于自定义事件实现模块间通信
@@ -36,6 +38,7 @@
 ### 2.1 核心模块划分
 
 #### 2.1.1 UI 组件层
+
 ```typescript
 // 模块结构
 src/
@@ -43,7 +46,6 @@ src/
 │   ├── Editor/         // 代码编辑器组件
 │   ├── Preview/        // 图表预览组件
 │   ├── ConfigModal/    // 配置弹窗组件
-│   └── ShareModal/     // 分享弹窗组件
 ├── layouts/            // 布局组件
 │   ├── Header/         // 顶部导航
 │   └── SplitView/      // 分屏布局
@@ -52,6 +54,7 @@ src/
 ```
 
 #### 2.1.2 业务逻辑层
+
 ```typescript
 // 核心服务
 services/
@@ -61,6 +64,7 @@ services/
 ```
 
 #### 2.1.3 数据管理层
+
 ```typescript
 // 数据管理
 store/
@@ -84,6 +88,7 @@ types/
 ## 3. 数据流设计
 
 ### 3.1 数据流向图
+
 ```
 用户输入 → Editor → AppStore → Preview
                     ↓
@@ -95,6 +100,7 @@ types/
 ### 3.2 状态管理设计
 
 #### 3.2.1 全局状态结构
+
 ```typescript
 interface AppState {
   currentChart: ChartData | null;
@@ -113,6 +119,7 @@ interface ChartData {
 ```
 
 #### 3.2.2 状态更新机制
+
 - **单向数据流**：UI → Action → Store → UI
 - **不可变更新**：使用结构化克隆确保状态不可变
 - **批量更新**：合并短时间内的多次更新
@@ -120,11 +127,11 @@ interface ChartData {
 ### 3.3 事件系统设计
 
 #### 3.3.1 自定义事件类型
+
 ```typescript
 // 事件定义
 interface AppEvents {
   'open-config': void;
-  'share-chart': { chartId: string };
   'export-png': { svgElement: SVGElement };
   'export-svg': { svgElement: SVGElement };
   'export-mermaid': { mermaidCode: string };
@@ -134,6 +141,7 @@ interface AppEvents {
 ```
 
 #### 3.3.2 事件总线实现
+
 ```typescript
 class EventBus {
   private listeners: Map<string, Function[]> = new Map();
@@ -153,6 +161,7 @@ class EventBus {
 ## 4. 存储架构
 
 ### 4.1 存储层次结构
+
 ```
 ┌─────────────────┐
 │   nocodb API    │ 云端主存储
@@ -168,17 +177,20 @@ class EventBus {
 ### 4.2 数据同步策略
 
 #### 4.2.1 NocoDB 配置管理
+
 - 存储 NocoDB 连接信息（URL、Token、表ID）
 - 自动检查并创建必要的表字段
 - 验证连接有效性
 - 管理同步状态
 
 #### 4.2.2 同步机制
+
 - **实时同步**：每次修改后 1 秒内触发同步
 - **冲突解决**：最后写入优先（基于 updated_at 时间戳）
 - **离线处理**：网络恢复后自动同步离线期间的更改
 
 #### 4.2.2 缓存策略
+
 - **LRU 缓存**：最多缓存 50 个最近使用的图表
 - **增量更新**：只同步变更的字段
 - **压缩存储**：使用 LZ-string 压缩图表内容
@@ -186,6 +198,7 @@ class EventBus {
 ### 4.3 数据一致性保证
 
 #### 4.3.1 版本控制
+
 ```typescript
 interface ChartVersion {
   id: string;
@@ -196,6 +209,7 @@ interface ChartVersion {
 ```
 
 #### 4.3.2 冲突检测
+
 - 基于时间戳的冲突检测
 - 内容哈希验证完整性
 - 用户手动解决冲突的界面
@@ -203,11 +217,13 @@ interface ChartVersion {
 ## 5. 安全设计
 
 ### 5.1 数据安全
+
 - **敏感信息加密**：API keys 使用 AES 加密存储
 - **HTTPS 强制**：所有 API 调用必须使用 HTTPS
 - **输入验证**：所有用户输入进行 XSS 过滤
 
 ### 5.2 配置安全
+
 ```typescript
 // 加密存储示例
 class SecureStorage {
@@ -219,6 +235,7 @@ class SecureStorage {
 ```
 
 ### 5.3 内容安全策略（CSP）
+
 ```html
 <meta http-equiv="Content-Security-Policy" 
       content="default-src 'self'; 
@@ -229,16 +246,19 @@ class SecureStorage {
 ## 6. 性能优化
 
 ### 6.1 渲染优化
+
 - **虚拟滚动**：大数据量时的编辑器优化
 - **防抖渲染**：输入防抖 300ms
 - **Web Worker**：mermaid 渲染在 Worker 中执行
 
 ### 6.2 网络优化
+
 - **请求缓存**：API 响应缓存 5 分钟
 - **批量请求**：合并多个同步请求
 - **CDN 加速**：静态资源使用 CDN
 
 ### 6.3 内存优化
+
 - **组件卸载**：及时清理事件监听器
 - **垃圾回收**：定期清理过期缓存
 - **内存监控**：开发模式下内存使用监控
@@ -246,6 +266,7 @@ class SecureStorage {
 ## 7. 错误处理架构
 
 ### 7.1 错误分类
+
 ```typescript
 enum ErrorType {
   NETWORK = 'NETWORK',
@@ -264,6 +285,7 @@ interface AppError {
 ```
 
 ### 7.2 错误恢复机制
+
 - **自动重试**：网络错误 3 次重试
 - **优雅降级**：离线模式使用本地缓存
 - **用户指导**：提供具体的解决步骤
@@ -271,6 +293,7 @@ interface AppError {
 ## 8. 扩展性设计
 
 ### 8.1 插件架构
+
 ```typescript
 interface Plugin {
   name: string;
@@ -287,11 +310,13 @@ interface PluginContext {
 ```
 
 ### 8.2 主题系统
+
 - **CSS 变量**：基于 Tailwind CSS 的主题变量
 - **动态加载**：支持运行时主题切换
 - **自定义主题**：用户可上传自定义 CSS
 
 ### 8.3 国际化支持
+
 - **i18n 框架**：基于浏览器 Intl API
 - **语言包**：JSON 格式的翻译文件
 - **动态加载**：按需加载语言包
@@ -299,11 +324,13 @@ interface PluginContext {
 ## 9. 开发规范
 
 ### 9.1 代码规范
+
 - **TypeScript 严格模式**：启用所有严格检查
 - **ESLint 配置**：使用 Airbnb 规范
 - **代码格式化**：Prettier 统一格式
 
 ### 9.2 目录规范
+
 ```
 src/
 ├── assets/          // 静态资源
@@ -316,6 +343,7 @@ src/
 ```
 
 ### 9.3 命名规范
+
 - **文件命名**：kebab-case（例：chart-service.ts）
 - **类命名**：PascalCase（例：ChartService）
 - **函数命名**：camelCase（例：getChartById）
@@ -324,11 +352,13 @@ src/
 ## 10. 部署架构
 
 ### 10.1 构建配置
+
 - **Vite 配置**：优化打包和开发体验
 - **环境变量**：区分开发、测试、生产环境
 - **代码分割**：按路由和组件分割代码
 
 ### 10.2 CI/CD 流程
+
 ```yaml
 # GitHub Actions 示例
 name: Deploy
@@ -348,6 +378,7 @@ jobs:
 ```
 
 ### 10.3 监控配置
+
 - **性能监控**：Core Web Vitals 指标
 - **错误监控**：Sentry 集成
 - **用户分析**：Google Analytics 集成

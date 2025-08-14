@@ -23,9 +23,6 @@ export class Header {
           <button id="new-chart-btn" class="btn-primary">
             新建图表
           </button>
-          <button id="share-btn" class="btn-secondary">
-            分享
-          </button>
           <div class="relative group">
             <button class="btn-secondary" id="export-btn">
               导出
@@ -58,7 +55,6 @@ export class Header {
 
   private bindEvents() {
     const newBtn = this.element.querySelector('#new-chart-btn')
-    const shareBtn = this.element.querySelector('#share-btn')
     const configBtn = this.element.querySelector('#config-btn')
     const exportPngBtn = this.element.querySelector('#export-png')
     const exportSvgBtn = this.element.querySelector('#export-svg')
@@ -74,17 +70,6 @@ export class Header {
       };
       this.store.addChart(newChart);
       this.store.setCurrentChart(newChart);
-    })
-
-    shareBtn?.addEventListener('click', () => {
-      const chart = this.store.getState().currentChart
-      if (chart?.id) {
-        document.dispatchEvent(new CustomEvent('share-chart', {
-          detail: { chartId: chart.id }
-        }))
-      } else {
-        alert('请先创建图表后再分享')
-      }
     })
 
     configBtn?.addEventListener('click', () => {

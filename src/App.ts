@@ -1,7 +1,6 @@
 import { Header } from '@/layouts/Header/Header'
 import { SplitView } from '@/layouts/SplitView/SplitView'
 import { ConfigModal } from '@/components/ConfigModal/ConfigModal'
-import { ShareModal } from '@/components/ShareModal/ShareModal'
 import { ChartList } from '@/components/ChartList/ChartList'
 import { StorageService } from '@/services/StorageService'
 import { AIService } from '@/services/AIService'
@@ -130,16 +129,6 @@ export class App {
         }
       })
       modal.open()
-    })
-
-    // 分享按钮事件
-    document.addEventListener('share-chart', (e: Event) => {
-      const customEvent = e as CustomEvent
-      const chartId = customEvent.detail?.chartId;
-      if (chartId) {
-        const modal = new ShareModal(chartId);
-        modal.open();
-      }
     })
 
     // 导出事件
