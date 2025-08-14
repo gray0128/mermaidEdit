@@ -1,10 +1,12 @@
 // 图表数据类型
 export interface ChartData {
-  id: string
+  id?: string
   title: string
   mermaidCode: string
   createdAt: Date
   updatedAt: Date
+  dirty: boolean
+  retry_count: number
 }
 
 // AI配置类型
@@ -20,7 +22,8 @@ export interface AIConfig {
 // NocoDB配置类型
 export interface NocoDBConfig {
   baseUrl: string
-  apiToken: string
+  apiKey: string
+  projectId: string
   tableId: string
 }
 

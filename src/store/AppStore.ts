@@ -1,4 +1,5 @@
 import { AppState, ChartData } from '@/types'
+import { StorageService } from '@/services/StorageService'
 
 export class AppStore {
   private state: AppState
@@ -44,15 +45,20 @@ export class AppStore {
     })
   }
 
-  updateChart(id: string, updates: Partial<ChartData>) {
-    const charts = this.state.charts.map(chart => 
+  async updateChart(id: string, updates: Partial<ChartData>) {
+    const charts = this.state.charts.map(chart =>
       chart.id === id ? { ...chart, ...updates, updatedAt: new Date() } : chart
     )
-    const currentChart = this.state.currentChart?.id === id 
+    const currentChart = this.state.currentChart?.id === id
       ? { ...this.state.currentChart, ...updates, updatedAt: new Date() }
       : this.state.currentChart
     
     this.setState({ charts, currentChart })
+    
+    const updatedChart = charts.find(chart => chart.id === id);
+    if (updatedChart) {
+      await StorageService.saveToLocal(updatedChart);
+    }
   }
 
   deleteChart(id: string) {

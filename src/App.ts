@@ -1,4 +1,6 @@
 import { Header } from '@/layouts/Header/Header'
+import { ChartData } from '@/types'
+import { ChartData } from '@/types'
 import { SplitView } from '@/layouts/SplitView/SplitView'
 import { ConfigModal } from '@/components/ConfigModal/ConfigModal'
 import { ChartList } from '@/components/ChartList/ChartList'
@@ -28,6 +30,8 @@ export class App {
     await this.setupServices();
     this.setupUI();
     this.bindEvents();
+    this.bindSyncConflictEvent();
+    this.bindSyncConflictEvent();
   }
 
   private async setupServices(): Promise<void> {
@@ -45,7 +49,9 @@ export class App {
         title: '新建图表',
         mermaidCode: '', // 初始为空，让用户自己输入或使用AI生成
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        dirty: false,
+        retry_count: 0
       };
       this.store.setCurrentChart(defaultChart);
     }
@@ -196,6 +202,289 @@ ${currentCode}
 
 请返回修改后的完整Mermaid代码。`
         }
+        
+        console.log('调用AI服务生成代码')
+        const mermaidCode = await this.aiService.generateMermaid(finalPrompt)
+        
+        console.log('AI生成成功，更新图表代码')
+        this.store.updateChart(currentChart.id, { mermaidCode })
+        
+        // 触发实时渲染
+        setTimeout(() => {
+          console.log('触发预览更新')
+          const event = new CustomEvent('mermaid-update', { detail: { code: mermaidCode } })
+          document.dispatchEvent(event)
+        }, 100)
+        
+        // AI生成的内容会自动保存到本地，无需手动保存
+        
+        success = true
+        console.log('AI生成完成')
+        
+      } catch (error) {
+        console.error('AI生成失败:', error)
+        const errorMessage = error instanceof Error ? error.message : 'AI生成失败'
+        alert(errorMessage)
+      } finally {
+        console.log('清除加载状态')
+        this.store.setLoading(false)
+        
+        // 触发AI生成完成事件
+        console.log('触发AI生成完成事件:', { success })
+        document.dispatchEvent(new CustomEvent('ai-generation-complete', {
+          detail: { success }
+        }))
+      }
+    
+      /**
+       * 绑定同步冲突事件
+       */
+      private bindSyncConflictEvent(): void {
+        document.addEventListener('sync-conflict', (e: Event) => {
+          const customEvent = e as CustomEvent<{ local: ChartData; cloud: ChartData }>
+          const { local, cloud } = customEvent.detail
+          this.showConflictModal(local, cloud)
+        })
+      }
+    
+      /**
+       * 绑定同步冲突事件
+       */
+      private bindSyncConflictEvent(): void {
+        document.addEventListener('sync-conflict', (e: Event) => {
+          const customEvent = e as CustomEvent<{ local: ChartData; cloud: ChartData }>
+          const { local, cloud } = customEvent.detail
+          this.showConflictModal(local, cloud)
+        })
+      }
+    })
+
+    // 同步冲突事件
+    document.addEventListener('sync-conflict', (e: Event) => {
+      const customEvent = e as CustomEvent<{ local: ChartData; cloud: ChartData }>
+      const { local, cloud } = customEvent.detail
+      this.showConflictModal(local, cloud)
+    })
+      const customEvent = e as CustomEvent
+      const prompt = customEvent.detail?.prompt
+      const currentCode = customEvent.detail?.currentCode || ''
+      
+      console.log('收到AI生成事件:', { prompt, currentCode })
+      
+      if (!prompt) {
+        console.error('AI生成事件缺少prompt参数')
+        return
+      }
+      
+      let success = false
+      try {
+        const currentChart = this.store.getState().currentChart
+        if (!currentChart?.id) {
+          console.error('没有当前图表，无法执行AI生成')
+          alert('请先创建一个图表')
+          return
+        }
+        
+        console.log('开始AI生成，设置加载状态')
+        this.store.setLoading(true)
+        
+        // 根据是否有现有代码构建不同的prompt
+        let finalPrompt = prompt
+        if (currentCode) {
+          finalPrompt = `请基于以下现有的Mermaid代码进行修改：
+
+\`\`\`mermaid
+${currentCode}
+\`\`\`
+
+用户要求：${prompt}
+
+请返回修改后的完整Mermaid代码。`
+          }
+        
+          /**
+           * 显示同步冲突模态框
+           */
+          private showConflictModal(local: ChartData, cloud: ChartData): void {
+            // 模态框背景
+            const backdrop = document.createElement('div')
+            backdrop.className = 'fixed inset-0 bg-black bg-opacity-50 z-50'
+        
+            // 模态框内容
+            const modal = document.createElement('div')
+            modal.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-96'
+        
+            // 标题
+            const title = document.createElement('h3')
+            title.className = 'text-lg font-semibold mb-4'
+            title.textContent = '同步冲突'
+        
+            // 冲突信息
+            const info = document.createElement('div')
+            info.className = 'mb-4 space-y-2 text-gray-700'
+            info.innerHTML = `
+              <p>本地最后修改时间：${new Date(local.updatedAt).toLocaleString()}</p>
+              <p>云端最后修改时间：${new Date(cloud.updatedAt).toLocaleString()}</p>
+              <p>请选择保留的版本：</p>
+            `
+        
+            // 操作按钮
+            const buttons = document.createElement('div')
+            buttons.className = 'flex justify-end space-x-3'
+        
+            // 保留本地按钮
+            const keepLocalBtn = document.createElement('button')
+            keepLocalBtn.className = 'px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors'
+            keepLocalBtn.textContent = '保留本地'
+            keepLocalBtn.addEventListener('click', () => {
+              this.resolveConflict(local, cloud, 'local')
+              this.closeModal(backdrop, modal)
+            })
+        
+            // 保留云端按钮
+            const keepCloudBtn = document.createElement('button')
+            keepCloudBtn.className = 'px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition-colors'
+            keepCloudBtn.textContent = '保留云端'
+            keepCloudBtn.addEventListener('click', () => {
+              this.resolveConflict(local, cloud, 'cloud')
+              this.closeModal(backdrop, modal)
+            })
+        
+            buttons.appendChild(keepLocalBtn)
+            buttons.appendChild(keepCloudBtn)
+        
+            modal.appendChild(title)
+            modal.appendChild(info)
+            modal.appendChild(buttons)
+        
+            document.body.appendChild(backdrop)
+            document.body.appendChild(modal)
+          }
+        
+          /**
+           * 关闭模态框
+           */
+          private closeModal(backdrop: HTMLElement, modal: HTMLElement): void {
+            backdrop.remove()
+            modal.remove()
+          }
+        
+          /**
+           * 解决冲突逻辑
+           */
+          private async resolveConflict(local: ChartData, cloud: ChartData, type: 'local' | 'cloud'): Promise<void> {
+            this.store.setLoading(true)
+        
+            try {
+              if (type === 'local') {
+                // 本地版本覆盖云端
+                await StorageService.updateCloudChart(local)
+                this.store.updateChart(local.id, local)
+              } else {
+                // 云端版本覆盖本地
+                await StorageService.saveToLocal(cloud)
+                this.store.updateChart(cloud.id, cloud)
+              }
+        
+              this.store.setError(null)
+            } catch (error) {
+              this.store.setError(`冲突解决失败: ${(error as Error).message}`)
+            } finally {
+              this.store.setLoading(false)
+            }
+          }
+        
+          /**
+           * 显示同步冲突模态框
+           */
+          private showConflictModal(local: ChartData, cloud: ChartData): void {
+            // 模态框背景
+            const backdrop = document.createElement('div')
+            backdrop.className = 'fixed inset-0 bg-black bg-opacity-50 z-50'
+        
+            // 模态框内容
+            const modal = document.createElement('div')
+            modal.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg w-96'
+        
+            // 标题
+            const title = document.createElement('h3')
+            title.className = 'text-lg font-semibold mb-4'
+            title.textContent = '同步冲突'
+        
+            // 冲突信息
+            const info = document.createElement('div')
+            info.className = 'mb-4 space-y-2 text-gray-700'
+            info.innerHTML = `
+              <p>本地最后修改时间：${new Date(local.updatedAt).toLocaleString()}</p>
+              <p>云端最后修改时间：${new Date(cloud.updatedAt).toLocaleString()}</p>
+              <p>请选择保留的版本：</p>
+            `
+        
+            // 操作按钮
+            const buttons = document.createElement('div')
+            buttons.className = 'flex justify-end space-x-3'
+        
+            // 保留本地按钮
+            const keepLocalBtn = document.createElement('button')
+            keepLocalBtn.className = 'px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors'
+            keepLocalBtn.textContent = '保留本地'
+            keepLocalBtn.addEventListener('click', () => {
+              this.resolveConflict(local, cloud, 'local')
+              this.closeModal(backdrop, modal)
+            })
+        
+            // 保留云端按钮
+            const keepCloudBtn = document.createElement('button')
+            keepCloudBtn.className = 'px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition-colors'
+            keepCloudBtn.textContent = '保留云端'
+            keepCloudBtn.addEventListener('click', () => {
+              this.resolveConflict(local, cloud, 'cloud')
+              this.closeModal(backdrop, modal)
+            })
+        
+            buttons.appendChild(keepLocalBtn)
+            buttons.appendChild(keepCloudBtn)
+        
+            modal.appendChild(title)
+            modal.appendChild(info)
+            modal.appendChild(buttons)
+        
+            document.body.appendChild(backdrop)
+            document.body.appendChild(modal)
+          }
+        
+          /**
+           * 关闭模态框
+           */
+          private closeModal(backdrop: HTMLElement, modal: HTMLElement): void {
+            backdrop.remove()
+            modal.remove()
+          }
+        
+          /**
+           * 解决冲突逻辑
+           */
+          private async resolveConflict(local: ChartData, cloud: ChartData, type: 'local' | 'cloud'): Promise<void> {
+            this.store.setLoading(true)
+        
+            try {
+              if (type === 'local') {
+                // 本地版本覆盖云端
+                await StorageService.updateCloudChart(local)
+                this.store.updateChart(local.id, local)
+              } else {
+                // 云端版本覆盖本地
+                await StorageService.saveToLocal(cloud)
+                this.store.updateChart(cloud.id, cloud)
+              }
+        
+              this.store.setError(null)
+            } catch (error) {
+              this.store.setError(`冲突解决失败: ${(error as Error).message}`)
+            } finally {
+              this.store.setLoading(false)
+            }
+          }
         
         console.log('调用AI服务生成代码')
         const mermaidCode = await this.aiService.generateMermaid(finalPrompt)

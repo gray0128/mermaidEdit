@@ -66,7 +66,9 @@ export class Header {
         title: '新建图表',
         mermaidCode: 'graph TD\n    A[开始] --> B[结束]',
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        dirty: false,
+        retry_count: 0
       };
       this.store.addChart(newChart);
       this.store.setCurrentChart(newChart);
