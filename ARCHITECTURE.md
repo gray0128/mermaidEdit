@@ -28,12 +28,25 @@ The core data is modeled with two primary interfaces.
 ```typescript
 // Defined in src/types/index.ts
 
-// Stage 1: MVP
+// Unified Storage Structure
+interface StorageItem {
+  key: string;
+  data: UserConfig | ChartData;
+  timestamp: number;
+}
+
+// Core Data Types
 interface UserConfig {
-  aiProvider: 'OpenAI' | 'Anthropic' | 'Custom';
-  baseURL: string;
-  apiKey: string;
-  modelName: string;
+  aiProvider?: 'OpenAI' | 'Anthropic' | 'Custom'; // Optional for MVP
+  baseURL?: string;
+  apiKey?: string;
+  modelName?: string;
+  kvStorage?: {
+    accountId: string;
+    namespaceId: string;
+    apiToken: string;
+    keyPrefix?: string;
+  }
 }
 
 interface ChartData {
@@ -42,18 +55,12 @@ interface ChartData {
   content: string; // Mermaid code
   createdAt: number; // Unix timestamp
   updatedAt: number; // Unix timestamp
+  syncStatus: 'local' | 'synced' | 'conflict' | 'error';
 }
 
-// Stage 2: With Cloud Sync
-interface UserConfig {
-  // ... same as Stage 1
-  kvStorage?: {
-    accountId: string;
-    namespaceId: string;
-    apiToken: string;
-    keyPrefix?: string;
-  }
-}
+// Storage Keys Convention
+// 'config' -> UserConfig
+// 'chart:{uuid}' -> ChartData
 ```
 
 ## 4. Directory Structure
@@ -77,32 +84,94 @@ The project follows a feature- and responsibility-driven structure.
 └── tsconfig.json
 ```
 
-## 5. Data Flow (MVP)
+## 5. Simplified Data Flow (MVP)
 
-This diagram illustrates the primary data flow for the MVP stage.
+This diagram illustrates the core data flow focusing on essential functionality.
 
 ```mermaid
 graph TD
     subgraph User Interface
         A[User edits in Editor] --> B{Application Core};
-        C[User types in AI Prompt] --> B;
         D[User interacts with Chart List] --> B;
     end
 
     subgraph Application Core
         B --> E[Storage Service];
-        B --> F[AI Service];
         B --> G[Mermaid Service];
     end
 
     subgraph Services
-        E -- reads/writes --> H[IndexedDB: ChartData];
-        E -- reads/writes --> I[LocalStorage: UserConfig];
-        F -- sends prompt --> J[External LLM API];
-        J -- returns code --> F;
-        F --> B;
+        E -- reads/writes --> H[IndexedDB: Unified Storage];
         G -- renders code --> K[Preview Pane];
+    end
+
+    subgraph Optional Features
+        C[AI Prompt] -.-> F[AI Service];
+        F -.-> J[External LLM API];
+        J -.-> F;
+        F -.-> B;
+        
+        L[Manual Sync Button] -.-> M[KV Sync Service];
+        M -.-> N[Cloudflare KV];
     end
 
     B --> K;
     B --> D;
+```
+
+**Key Simplifications:**
+- Unified IndexedDB storage eliminates data duplication
+- AI features are optional and don't complicate core flow
+- Manual sync prevents race conditions and conflicts
+- Clear separation between core and optional features
+
+## 6. Error Handling Architecture
+
+### 6.1 Layered Error Handling
+
+```typescript
+// Core error types
+type AppError = 
+  | StorageError 
+  | RenderError 
+  | NetworkError 
+  | ValidationError;
+
+interface ErrorHandler {
+  handle(error: AppError): void;
+  recover?(error: AppError): boolean;
+}
+```
+
+### 6.2 Error Boundaries
+
+**Storage Layer:**
+- Catch IndexedDB failures
+- Implement retry logic with exponential backoff
+- Fallback to memory storage for session
+
+**Render Layer:**
+- Isolate Mermaid rendering errors
+- Show error overlay without breaking editor
+- Provide syntax validation feedback
+
+**Network Layer:**
+- Handle offline scenarios gracefully
+- Queue failed operations for retry
+- Clear user feedback on connection status
+
+### 6.3 Recovery Strategies
+
+**Data Recovery:**
+```typescript
+class DataRecoveryService {
+  async recoverFromStorage(): Promise<ChartData[]>;
+  async exportToFile(data: ChartData[]): Promise<void>;
+  async importFromFile(file: File): Promise<ChartData[]>;
+}
+```
+
+**State Recovery:**
+- Maintain minimal application state
+- Implement state snapshots for critical operations
+- Automatic recovery on application restart
